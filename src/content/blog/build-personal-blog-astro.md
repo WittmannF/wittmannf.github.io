@@ -282,6 +282,18 @@ The output goes to `dist/`. Choose a platform below.
    ```
 5. Push to `main` — the workflow deploys automatically
 
+### Custom domain (Cloudflare Pages)
+
+1. In your Pages project → **Custom domains** → **Set up a custom domain**
+2. Enter your domain (e.g. `yourdomain.com`) → Continue
+3. Cloudflare will prompt you to transfer DNS management — click **Begin DNS transfer**
+4. Cloudflare scans your existing records and gives you two nameservers (e.g. `cruz.ns.cloudflare.com`)
+5. Go to your domain registrar → Nameservers → replace with the two Cloudflare nameservers → Save
+6. Wait 15–60 minutes for propagation — Cloudflare emails you when active
+7. Back in Pages → Custom domains → **Check DNS records** — Cloudflare adds the CNAME automatically
+
+> The custom domain, DNS transfer, and SSL certificate are all free.
+
 ### Vercel
 
 1. Go to [vercel.com](https://vercel.com) → **Add New Project**
