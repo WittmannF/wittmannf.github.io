@@ -31,7 +31,7 @@ const allPosts = (await getCollection('blog'))
       <div style="border-top: 1px solid var(--tn-border);">
         {allPosts.map((post) => (
           <article class="group py-8" style="border-bottom: 1px solid var(--tn-border);">
-            <a href={`/blog/${post.slug}`} class="block">
+            <a href={`/pt/blog/${post.slug}`} class="block">
               <div class="flex items-center gap-3 mb-3 text-xs" style="color: var(--tn-muted);">
                 <time datetime={post.data.pubDate.toISOString()}>
                   {new Intl.DateTimeFormat('pt-BR', { year: 'numeric', month: 'long', day: 'numeric' }).format(post.data.pubDate)}
