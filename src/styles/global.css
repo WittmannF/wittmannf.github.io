@@ -1,0 +1,147 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@layer base {
+  :root {
+    --tn-bg: #0d1117;
+    --tn-surface: #161b22;
+    --tn-border: #21262d;
+    --tn-text: #c9d1d9;
+    --tn-text-bright: #e6edf3;
+    --tn-muted: #8b949e;
+    --tn-blue: #89b4fa;
+    --tn-cyan: #89b4fa;
+    --accent: #89b4fa;
+    --accent-dim: rgba(137, 180, 250, 0.08);
+    --accent-border: rgba(137, 180, 250, 0.2);
+  }
+
+  body {
+    background-color: var(--tn-bg);
+    color: var(--tn-text);
+    font-family: 'Inter', system-ui, sans-serif;
+    @apply antialiased min-h-screen;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    color: var(--tn-text-bright);
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    @apply font-bold;
+  }
+}
+
+@layer components {
+  .container {
+    @apply mx-auto max-w-6xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center rounded-lg px-6 py-3 text-sm font-semibold transition-all duration-300;
+    @apply transform hover:scale-105 active:scale-95;
+  }
+
+  .btn-primary {
+    background-color: var(--accent);
+    color: #0d1117;
+    font-weight: 700;
+  }
+
+  .btn-primary:hover {
+    opacity: 0.88;
+  }
+
+  .btn-secondary {
+    background-color: transparent;
+    color: var(--tn-text);
+    border: 1px solid var(--tn-border);
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--accent-border);
+    color: var(--tn-text-bright);
+  }
+
+  .card {
+    background-color: var(--tn-surface);
+    border: 1px solid var(--tn-border);
+    @apply rounded-xl p-6 transition-all duration-300 transform hover:-translate-y-0.5;
+  }
+
+  .card:hover {
+    border-color: var(--accent-border);
+  }
+
+  /* Solid accent color instead of gradient */
+  .gradient-text {
+    color: var(--accent);
+  }
+
+  .nav-link {
+    color: var(--tn-text);
+    @apply relative transition-colors duration-300;
+  }
+
+  .nav-link:hover {
+    color: var(--tn-text-bright);
+  }
+
+  .nav-link::after {
+    content: '';
+    @apply absolute -bottom-1 left-0 w-0 h-px transition-all duration-300;
+    background-color: var(--accent);
+  }
+
+  .nav-link:hover::after,
+  .nav-link.active::after {
+    @apply w-full;
+  }
+
+  .nav-link.active {
+    color: var(--tn-text-bright);
+  }
+
+  .tag {
+    background-color: var(--accent-dim);
+    color: var(--accent);
+    border: 1px solid var(--accent-border);
+    @apply px-3 py-1 text-xs font-medium rounded-full transition-colors duration-200;
+  }
+
+  .tag:hover {
+    background-color: rgba(34, 211, 238, 0.15);
+  }
+
+  .tech-badge {
+    background-color: var(--accent-dim);
+    color: var(--accent);
+    border: 1px solid var(--accent-border);
+    @apply px-3 py-1 text-xs font-medium rounded-full;
+  }
+
+  .badge-role {
+    background-color: var(--accent-dim);
+    color: var(--accent);
+    border: 1px solid var(--accent-border);
+    @apply px-4 py-1.5 rounded-full;
+  }
+
+  .lang-switcher {
+    color: var(--tn-muted);
+    border: 1px solid var(--tn-border);
+    @apply text-xs font-semibold px-3 py-1.5 rounded-md transition-all duration-200;
+  }
+
+  .lang-switcher:hover {
+    color: var(--tn-text-bright);
+    border-color: var(--accent-border);
+  }
+
+  .social-link {
+    color: var(--tn-muted);
+    @apply transition-all duration-300 hover:scale-110 transform;
+  }
+
+  .social-link:hover {
+    color: var(--accent);
+  }
+}

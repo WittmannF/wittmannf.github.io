@@ -1,0 +1,23 @@
+{
+  "name": "meu-blog-portfolio",
+  "type": "module",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/mdx": "^4.3.1",
+    "@astrojs/rss": "^4.0.9",
+    "@astrojs/sitemap": "^3.2.1",
+    "@tailwindcss/vite": "^4.2.1",
+    "astro": "^5.1.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/typography": "^0.5.15",
+    "tailwindcss": "^4.2.1"
+  }
+}

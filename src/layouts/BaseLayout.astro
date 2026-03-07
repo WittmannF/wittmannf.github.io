@@ -1,0 +1,41 @@
+---
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description?: string;
+  lang?: 'en' | 'pt';
+  alternateUrl?: string;
+}
+
+const {
+  title,
+  description = 'Senior Machine Learning Engineer specializing in Deep Learning, NLP, and Computer Vision.',
+  lang = 'en',
+  alternateUrl,
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang={lang === 'en' ? 'en' : 'pt-BR'}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="description" content={description} />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+  </head>
+  <body>
+    <Header lang={lang} alternateUrl={alternateUrl} />
+    <main class="container py-12">
+      <slot />
+    </main>
+    <Footer lang={lang} />
+  </body>
+</html>
