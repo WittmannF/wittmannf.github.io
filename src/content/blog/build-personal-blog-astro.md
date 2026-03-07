@@ -7,7 +7,7 @@ tags: ['Astro', 'Tailwind CSS', 'Web Dev', 'Tutorial']
 
 This post walks through how to build a personal blog and portfolio site exactly like this one — using **Astro 5**, **Tailwind CSS v4**, bilingual support (EN/PT), and a Tokyo Night dark theme.
 
-The full source code is available at [github.com/WittmannF/fernandowittmann](https://github.com/WittmannF/fernandowittmann).
+The full source code is available at [github.com/WittmannF/wittmannf.github.io](https://github.com/WittmannF/wittmannf.github.io).
 
 ---
 
@@ -288,4 +288,4 @@ src/
 
 ---
 
-The full source code for this site is at **[github.com/WittmannF/fernandowittmann](https://github.com/WittmannF/fernandowittmann)**. Feel free to fork it and adapt it for your own portfolio.
+The full source code for this site is at **[github.com/WittmannF/wittmannf.github.io](https://github.com/WittmannF/wittmannf.github.io)**. Feel free to fork it and adapt it for your own portfolio.
