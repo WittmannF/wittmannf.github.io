@@ -1,0 +1,90 @@
+---
+import BaseLayout from './BaseLayout.astro';
+
+interface Props {
+  title: string;
+  description: string;
+  pubDate: Date;
+  updatedDate?: Date;
+  tags?: string[];
+}
+
+const { title, description, pubDate, updatedDate, tags } = Astro.props;
+
+const formattedDate = new Intl.DateTimeFormat('en-US', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric'
+}).format(pubDate);
+
+const formattedUpdatedDate = updatedDate
+  ? new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long', day: 'numeric' }).format(updatedDate)
+  : null;
+---
+
+<BaseLayout title={title} description={description} lang="en" alternateUrl="/pt/blog">
+  <article class="max-w-3xl mx-auto">
+    <header class="mb-12">
+      {tags && tags.length > 0 && (
+        <div class="flex gap-2 mb-6">
+          {tags.map(tag => <span class="tag">{tag}</span>)}
+        </div>
+      )}
+      <h1 class="text-5xl font-bold mb-6 leading-tight gradient-text">{title}</h1>
+      <div class="flex items-center gap-6 text-sm" style="color: var(--tn-muted);">
+        <time datetime={pubDate.toISOString()} class="flex items-center gap-2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          {formattedDate}
+        </time>
+        {formattedUpdatedDate && (
+          <span class="flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Updated on {formattedUpdatedDate}
+          </span>
+        )}
+      </div>
+    </header>
+
+    <div class="prose prose-lg prose-invert max-w-none
+      prose-headings:font-bold prose-headings:gradient-text
+      prose-h1:text-4xl prose-h2:text-3xl prose-h3:text-2xl
+      prose-p:leading-relaxed
+      prose-a:no-underline prose-a:transition-colors
+      prose-strong:font-semibold
+      prose-code:px-2 prose-code:py-1 prose-code:rounded prose-code:before:content-[''] prose-code:after:content-['']
+      prose-img:rounded-xl prose-img:shadow-2xl"
+      style="
+        --tw-prose-body: var(--tn-text);
+        --tw-prose-headings: var(--tn-text-bright);
+        --tw-prose-links: var(--tn-blue);
+        --tw-prose-bold: var(--tn-text-bright);
+        --tw-prose-counters: var(--tn-muted);
+        --tw-prose-bullets: var(--tn-muted);
+        --tw-prose-hr: var(--tn-border);
+        --tw-prose-quotes: var(--tn-text);
+        --tw-prose-quote-borders: var(--tn-blue);
+        --tw-prose-captions: var(--tn-muted);
+        --tw-prose-code: var(--tn-cyan);
+        --tw-prose-pre-code: var(--tn-text);
+        --tw-prose-pre-bg: rgba(22, 33, 62, 0.9);
+        --tw-prose-th-borders: var(--tn-border);
+        --tw-prose-td-borders: var(--tn-border);
+      "
+    >
+      <slot />
+    </div>
+
+    <div class="mt-16 pt-8" style="border-top: 1px solid var(--tn-border);">
+      <a href="/blog" class="inline-flex items-center gap-2 font-medium transition-colors" style="color: var(--tn-blue);">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        Back to blog
+      </a>
+    </div>
+  </article>
+</BaseLayout>

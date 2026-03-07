@@ -1,0 +1,58 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getCollection } from 'astro:content';
+
+const allPosts = (await getCollection('blog'))
+  .filter(post => !post.data.draft && post.data.lang === 'en')
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+---
+
+<BaseLayout
+  title="Blog — Fernando Wittmann"
+  description="Articles on Machine Learning, Deep Learning, and Data Science"
+  lang="en"
+  alternateUrl="/pt/blog"
+>
+  <div class="max-w-4xl mx-auto">
+    <div class="mb-16">
+      <h1 class="text-5xl font-bold mb-4">
+        <span class="gradient-text">Blog</span>
+      </h1>
+      <p class="text-xl" style="color: var(--tn-text);">
+        Articles on Machine Learning, Deep Learning, and Data Science
+      </p>
+    </div>
+
+    {allPosts.length === 0 ? (
+      <div class="card text-center py-12">
+        <p style="color: var(--tn-muted);">No posts published yet.</p>
+      </div>
+    ) : (
+      <div style="border-top: 1px solid var(--tn-border);">
+        {allPosts.map((post) => (
+          <article class="group py-8" style="border-bottom: 1px solid var(--tn-border);">
+            <a href={`/blog/${post.slug}`} class="block">
+              <div class="flex items-center gap-3 mb-3 text-xs" style="color: var(--tn-muted);">
+                <time datetime={post.data.pubDate.toISOString()}>
+                  {new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long', day: 'numeric' }).format(post.data.pubDate)}
+                </time>
+                {post.data.tags && post.data.tags.length > 0 && (
+                  <>
+                    <span>·</span>
+                    <div class="flex gap-2">
+                      {post.data.tags.map(tag => <span class="tag">{tag}</span>)}
+                    </div>
+                  </>
+                )}
+              </div>
+              <h2 class="text-xl font-bold mb-2 transition-colors group-hover:text-[var(--accent)]" style="color: var(--tn-text-bright);">
+                {post.data.title}
+              </h2>
+              <p style="color: var(--tn-text);">{post.data.description}</p>
+            </a>
+          </article>
+        ))}
+      </div>
+    )}
+  </div>
+</BaseLayout>
