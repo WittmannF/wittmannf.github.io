@@ -344,8 +344,7 @@ vercel --prod
 
 1. No repositório, vá em **Settings > Pages**
 2. Em **Source**, selecione **GitHub Actions**
-3. Se o workflow `deploy-cloudflare.yml` existir, delete-o ou desabilite-o para evitar conflito
-4. Push para `main` — o workflow `deploy-github-pages.yml` fará o deploy automaticamente
+3. Push para `main` — o workflow `deploy-github-pages.yml` fará o deploy automaticamente
 
 > **Atenção:** se o repositório não for `usuario.github.io`, adicione a opção `base` em `astro.config.mjs`:
 > ```js
