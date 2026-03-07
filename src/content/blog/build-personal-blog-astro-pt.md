@@ -276,12 +276,12 @@ O output vai para `dist/`. A partir daqui, escolha uma das três opções abaixo
 
 #### Via Dashboard
 
-1. Acesse [pages.cloudflare.com](https://pages.cloudflare.com/) e clique em **Create a project**
+1. Acesse `dash.cloudflare.com` → **Workers & Pages** → **Create** → aba **Pages**
 2. Conecte seu repositório GitHub
-3. Configure o build:
+3. Em **Build settings**, selecione o preset **Astro** — ele preenche automaticamente:
    - **Build command**: `npm run build`
    - **Build output directory**: `dist`
-   - **Node version**: `20`
+   - **Deploy command**: *(deixe vazio)*
 4. Clique em **Save and Deploy** — a cada push em `main` um novo deploy é disparado automaticamente
 
 #### Via GitHub Actions
@@ -389,9 +389,10 @@ src/
     blog/index.astro  ← blog EN
     projects.astro    ← projetos EN
     pt/
-      index.astro     ← home PT
+      index.astro        ← home PT
       blog/index.astro
-    projetos.astro    ← projetos PT
+      blog/[...slug].astro
+      projects.astro     ← projetos PT
   styles/
     global.css
 ```
