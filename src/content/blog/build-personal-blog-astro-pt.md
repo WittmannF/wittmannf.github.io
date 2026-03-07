@@ -8,7 +8,7 @@ lang: 'pt'
 
 Este post mostra como criar um blog pessoal e portfólio exatamente como este — usando **Astro 5**, **Tailwind CSS v4**, suporte bilíngue (EN/PT) e o tema dark Tokyo Night.
 
-O código-fonte completo está disponível em [github.com/WittmannF/fernandowittmann](https://github.com/WittmannF/fernandowittmann).
+O código-fonte completo está disponível em [github.com/WittmannF/wittmannf.github.io](https://github.com/WittmannF/wittmannf.github.io).
 
 ---
 
@@ -399,4 +399,4 @@ src/
 
 ---
 
-O código-fonte completo deste site está em **[github.com/WittmannF/fernandowittmann](https://github.com/WittmannF/fernandowittmann)**. Fique à vontade para fazer um fork e adaptar para o seu portfólio.
+O código-fonte completo deste site está em **[github.com/WittmannF/wittmannf.github.io](https://github.com/WittmannF/wittmannf.github.io)**. Fique à vontade para fazer um fork e adaptar para o seu portfólio.

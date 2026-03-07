@@ -2,7 +2,7 @@
 title: 'Personal Blog & Portfolio'
 description: 'This site — a bilingual (EN/PT) personal blog and portfolio built with Astro 5, Tailwind CSS v4, and Tokyo Night theme.'
 tech: ['Astro', 'Tailwind CSS v4', 'TypeScript', 'MDX']
-github: 'https://github.com/WittmannF/fernandowittmann'
+github: 'https://github.com/WittmannF/wittmannf.github.io'
 featured: true
 order: 0
 ---
