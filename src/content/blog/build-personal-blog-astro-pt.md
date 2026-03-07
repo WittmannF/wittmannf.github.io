@@ -317,6 +317,18 @@ wrangler pages deploy dist --project-name=seu-projeto
 
 ---
 
+### Domínio customizado (Cloudflare Pages)
+
+1. No seu projeto Pages → **Custom domains** → **Set up a custom domain**
+2. Digite seu domínio (ex: `seudominio.com`) → Continue
+3. O Cloudflare pedirá para transferir o gerenciamento de DNS — clique em **Begin DNS transfer**
+4. O Cloudflare escaneia seus registros existentes e fornece dois nameservers (ex: `cruz.ns.cloudflare.com`)
+5. Vá ao seu registrador → Nameservers → substitua pelos dois nameservers do Cloudflare → Salve
+6. Aguarde 15–60 minutos para propagação — o Cloudflare envia um e-mail quando estiver ativo
+7. De volta em Pages → Custom domains → **Check DNS records** — o Cloudflare adiciona o CNAME automaticamente
+
+> O domínio customizado, a transferência de DNS e o certificado SSL são todos gratuitos.
+
 ### Opção B — Vercel
 
 #### Via Dashboard
