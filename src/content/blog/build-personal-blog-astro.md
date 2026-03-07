@@ -249,13 +249,44 @@ markdown: {
 
 ---
 
-## 8. Deploy to Cloudflare Pages (or Vercel)
+## 8. Deploy
 
 ```bash
 npm run build
 ```
 
-The output goes to `dist/`. Push to GitHub and connect the repo to Cloudflare Pages or Vercel — both support Astro out of the box with zero configuration.
+The output goes to `dist/`. Choose a platform below.
+
+### Cloudflare Pages (recommended)
+
+#### Via Dashboard
+
+1. Go to `dash.cloudflare.com` → **Workers & Pages** → **Create** → **Pages** tab
+2. Connect your GitHub repository
+3. Under **Build settings**, select the **Astro** preset — it auto-fills:
+   - **Build command**: `npm run build`
+   - **Build output directory**: `dist`
+   - **Deploy command**: *(leave empty)*
+4. Click **Save and Deploy** — every push to `main` triggers a deploy automatically
+
+#### Via GitHub Actions
+
+1. Copy your **Account ID** from the Cloudflare dashboard
+2. Create an API Token at `dash.cloudflare.com/profile/api-tokens` with *Cloudflare Pages - Edit* permission
+3. Add both secrets to GitHub: **Settings > Secrets and variables > Actions**
+   - `CLOUDFLARE_ACCOUNT_ID`
+   - `CLOUDFLARE_API_TOKEN`
+4. In `.github/workflows/deploy-cloudflare.yml`, update the project name:
+   ```yaml
+   command: pages deploy dist --project-name=your-project-name
+   ```
+5. Push to `main` — the workflow deploys automatically
+
+### Vercel
+
+1. Go to [vercel.com](https://vercel.com) → **Add New Project**
+2. Import your GitHub repository — Vercel detects Astro automatically
+3. Click **Deploy**
 
 ---
 
@@ -279,9 +310,10 @@ src/
     blog/index.astro  ← EN blog
     projects.astro    ← EN projects
     pt/
-      index.astro     ← PT home
+      index.astro        ← PT home
       blog/index.astro
-    projetos.astro    ← PT projects
+      blog/[...slug].astro
+      projects.astro     ← PT projects
   styles/
     global.css
 ```
