@@ -49,7 +49,7 @@ const stats = [
     </p>
     <div class="flex flex-wrap gap-4 mb-10">
       <a href="/pt/blog" class="btn btn-primary">Ver Blog →</a>
-      <a href="/projetos" class="btn btn-secondary">Ver Projetos</a>
+      <a href="/pt/projects" class="btn btn-secondary">Ver Projetos</a>
     </div>
     <div class="flex flex-wrap gap-2">
       {skills.map(skill => <span class="tech-badge">{skill}</span>)}
@@ -86,7 +86,7 @@ const stats = [
       <div style="border-top: 1px solid var(--tn-border);">
         {allPosts.map((post) => (
           <article class="group py-6" style="border-bottom: 1px solid var(--tn-border);">
-            <a href={`/blog/${post.slug}`} class="block">
+            <a href={`/pt/blog/${post.slug}`} class="block">
               <div class="flex items-center gap-3 mb-2 text-xs" style="color: var(--tn-muted);">
                 <time datetime={post.data.pubDate.toISOString()}>
                   {new Intl.DateTimeFormat('pt-BR', { year: 'numeric', month: 'long', day: 'numeric' }).format(post.data.pubDate)}
@@ -118,7 +118,7 @@ const stats = [
         <h2 class="text-4xl font-bold" style="color: var(--tn-text-bright);">
           Projetos <span class="gradient-text">em Destaque</span>
         </h2>
-        <a href="/projetos" class="text-sm font-medium transition-colors" style="color: var(--tn-blue);">
+        <a href="/pt/projects" class="text-sm font-medium transition-colors" style="color: var(--tn-blue);">
           Ver todos →
         </a>
       </div>
