@@ -12,6 +12,7 @@ class PredictionRequest(BaseModel):
 
 
 class PredictionResponse(BaseModel):
+    model_config = {"protected_namespaces": ()}
     prediction: float
     model_version: str = "1.0.0"
 

@@ -14,7 +14,7 @@ Este guia vai te levar dessa situação — uma API que só funciona na sua máq
 
 Vamos usar como exemplo uma API FastAPI que serve predições de um modelo de ML. Se você trabalha com backend para aplicações de IA, vai se sentir em casa.
 
-> **Quer acompanhar na prática?** Todos os arquivos do exemplo estão [disponíveis no GitHub](https://github.com/WittmannF/wittmannf.github.io/tree/main/public/blog/docker-ultimate-guide) — incluindo o `model.pkl` pronto para uso. É só clonar e seguir junto.
+> **Quer acompanhar na prática?** Todos os arquivos do exemplo estão [disponíveis no GitHub](https://github.com/WittmannF/wittmannf.github.io/tree/main/public/blog/docker-ultimate-guide). Clone, instale as dependências com `pip install -r requirements.txt`, rode `python train_model.py` para gerar o modelo, e siga junto.
 
 ---
 
@@ -36,6 +36,7 @@ class PredictionRequest(BaseModel):
     features: list[float]
 
 class PredictionResponse(BaseModel):
+    model_config = {"protected_namespaces": ()}
     prediction: float
     model_version: str = "1.0.0"
 
