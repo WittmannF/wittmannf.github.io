@@ -1,5 +1,5 @@
 ---
-title: 'Docker: O Guia Definitivo — Do Zero à Produção'
+title: 'Docker para ML Engineers: Guia Prático Do Zero à Produção'
 description: 'Aprenda Docker construindo: uma API FastAPI com modelo de ML que começa rodando local e termina pronta para produção. Cada problema leva ao próximo conceito — Dockerfile, Compose, volumes, networking, segurança e deploy.'
 pubDate: 2026-04-17
 tags: ['Docker', 'DevOps', 'Containers', 'FastAPI', 'Python']
@@ -10,9 +10,9 @@ Você treinou um modelo de ML. Funciona no seu notebook. Agora precisa servir el
 
 *"Que versão do Python tu tá usando? Aqui dá erro no numpy. E o modelo .pkl, tá onde?"*
 
-Este guia vai te levar dessa situação — uma API que só funciona na sua máquina — até uma aplicação containerizada, com banco de dados, cache, segurança e pronta para produção. Cada seção resolve um problema real que naturalmente cria o próximo.
+Este guia vai te levar dessa situação — uma API que só funciona na sua máquina — até uma aplicação containerizada, pronta para produção. São **12 problemas reais** que você vai enfrentar ao colocar um modelo em produção, cada um levando ao próximo conceito Docker: Dockerfile, `.dockerignore`, cache de camadas, Compose, volumes, networking, Redis, segurança, container registry, CI/CD, debugging e deploy na cloud.
 
-Vamos usar como exemplo uma API FastAPI que serve predições de um modelo de ML. Se você trabalha com backend para aplicações de IA, vai se sentir em casa.
+Vamos usar como exemplo uma **API FastAPI que serve predições de um modelo de ML**. Se você trabalha com backend para aplicações de IA, vai se sentir em casa.
 
 > **Quer acompanhar na prática?** Todos os arquivos do exemplo estão [disponíveis no GitHub](https://github.com/WittmannF/wittmannf.github.io/tree/main/public/blog/docker-ultimate-guide). Clone, instale as dependências com `pip install -r requirements.txt`, rode `python train_model.py` para gerar o modelo, e siga junto.
 
@@ -146,96 +146,22 @@ Mas tem um problema...
 
 ---
 
-## Problema 2: A Imagem Ficou Enorme
+## Problema 2: O Docker Está Copiando Lixo para a Imagem
+
+Rode o build e repare na primeira linha:
 
 ```bash
-docker image ls
-# REPOSITORY  TAG   SIZE
-# ml-api      v1    1.2GB
+docker build -t ml-api:v1 .
+# [+] Building ... transferring context: 500MB
 ```
 
-1.2GB para servir uma API simples? Cada push para um registry, cada pull em CI/CD, cada deploy — tudo demora. Modelos de ML já são grandes; a imagem não precisa ser.
+O `COPY . .` copia **tudo** do diretório para dentro da imagem: `.git`, `.venv`, `__pycache__`, datasets de treino, checkpoints do modelo, `.env` com credenciais. Tudo.
 
-### Solução: Multi-Stage Build
+Isso causa três problemas: build lento (enviar centenas de MB ao daemon demora), imagem maior do que precisa, e — o pior — **segredos vazando dentro da imagem** que você publicar.
 
-A ideia: use um estágio para instalar dependências (que pode precisar de compiladores, headers, etc.) e um segundo estágio — limpo — só com o resultado final.
+### Solução: `.dockerignore`
 
-```dockerfile
-# Estágio 1: Instalar dependências
-FROM python:3.12-slim AS builder
-WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc g++ \
-    && rm -rf /var/lib/apt/lists/*
-COPY requirements.txt .
-RUN pip install --prefix=/install --no-cache-dir -r requirements.txt
-
-# Estágio 2: Imagem de produção (limpa)
-FROM python:3.12-slim
-WORKDIR /app
-
-COPY --from=builder /install /usr/local
-COPY . .
-
-EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
-```
-
-O `gcc` e `g++` ficam apenas no estágio de build. A imagem final não tem compiladores — só o Python, as libs instaladas e seu código.
-
-```bash
-docker build -t ml-api:v2 .
-docker image ls
-# REPOSITORY  TAG   SIZE
-# ml-api      v1    1.2GB
-# ml-api      v2    450MB
-```
-
-Ainda grande por causa do scikit-learn/numpy, mas quase 3x menor. Para modelos realmente pesados (PyTorch, transformers), a diferença é ainda mais dramática.
-
-> **Por que `-slim` e não Alpine?** Imagens Alpine usam `musl` em vez de `glibc`. Muitas libs de ML (numpy, scipy, pandas) dependem de `glibc` e precisam ser compiladas do zero no Alpine — build lento e imagem às vezes até maior. Para Python/ML, `-slim` (Debian) é o melhor padrão.
-
----
-
-## Problema 3: Cada Mudança Rebuilda Tudo
-
-Você muda uma linha no `main.py`, roda `docker build` e... ele reinstala todas as dependências do zero. O `pip install` leva 2 minutos toda vez.
-
-### Solução: Entender Cache de Camadas
-
-Docker constrói imagens em **camadas**. Cada instrução do Dockerfile cria uma camada. Se uma camada muda, **todas as camadas depois dela são invalidadas**.
-
-O problema do Dockerfile anterior: `COPY . .` antes do `pip install` copiava tudo — incluindo o código-fonte. Qualquer mudança no código invalidava o cache de `pip install`.
-
-A solução é copiar primeiro **só o que define dependências**, instalar, e **depois** copiar o código:
-
-```dockerfile
-FROM python:3.12-slim AS builder
-WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc g++ \
-    && rm -rf /var/lib/apt/lists/*
-
-# Primeiro: só o que define dependências
-COPY requirements.txt .
-RUN pip install --prefix=/install --no-cache-dir -r requirements.txt
-
-FROM python:3.12-slim
-WORKDIR /app
-COPY --from=builder /install /usr/local
-
-# Depois: código e modelo (muda frequentemente)
-COPY . .
-
-EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
-```
-
-> **Regra de ouro**: ordene as instruções da **menos alterada** para a **mais alterada**.
-
-Agora, mudar `main.py` → rebuild em segundos (cache das dependências é aproveitado).
-
-Também crie um `.dockerignore` para não enviar lixo ao daemon:
+Funciona exatamente como `.gitignore`. Crie na raiz do projeto:
 
 ```
 .git
@@ -253,7 +179,39 @@ notebooks/
 data/raw/
 ```
 
-Sem `.dockerignore`, o Docker envia **todo** o diretório como contexto de build — incluindo seus datasets de treino, checkpoints do modelo e o diretório `.git`.
+Agora o `docker build` envia apenas o que importa: código, requirements e modelo. Build mais rápido, imagem mais limpa, sem segredos vazando.
+
+> **Dica**: Sempre crie o `.dockerignore` junto com o `Dockerfile`. É tão importante quanto o `.gitignore` — e frequentemente esquecido.
+
+---
+
+## Problema 3: Cada Mudança Rebuilda Tudo
+
+Você muda uma linha no `main.py`, roda `docker build` e... ele reinstala todas as dependências do zero. O `pip install` leva 2 minutos toda vez.
+
+### Solução: Entender Cache de Camadas
+
+Docker constrói imagens em **camadas**. Cada instrução do Dockerfile cria uma camada. Se uma camada muda, **todas as camadas depois dela são invalidadas**.
+
+Olhe nosso Dockerfile:
+
+```dockerfile
+FROM python:3.12-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+Repare na ordem: primeiro `COPY requirements.txt` e `pip install`, **depois** `COPY . .` com o código. Isso é intencional.
+
+Se fizéssemos `COPY . .` antes do `pip install`, qualquer mudança em `main.py` invalidaria o cache e forçaria a reinstalação de todas as dependências. Com a ordem correta, mudar o código não afeta a camada do `pip install` — rebuild em segundos.
+
+> **Regra de ouro**: ordene as instruções da **menos alterada** para a **mais alterada**.
+
+Teste: mude algo no `main.py` e rode `docker build` de novo. Repare que as camadas de `pip install` vêm do cache (`CACHED`), e só as últimas camadas são reconstruídas.
 
 ---
 
@@ -568,23 +526,15 @@ Sim. Por padrão, containers Docker rodam como **root**. Se alguém explorar uma
 Atualize o Dockerfile:
 
 ```dockerfile
-# Estágio 1: Build
-FROM python:3.12-slim AS builder
-WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc g++ \
-    && rm -rf /var/lib/apt/lists/*
-COPY requirements.txt .
-RUN pip install --prefix=/install --no-cache-dir -r requirements.txt
-
-# Estágio 2: Produção
 FROM python:3.12-slim
 WORKDIR /app
 
 # Criar usuário não-root
 RUN groupadd -r appuser && useradd --no-log-init -r -g appuser appuser
 
-COPY --from=builder /install /usr/local
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
 COPY --chown=appuser:appuser . .
 
 EXPOSE 8000
@@ -657,37 +607,91 @@ Sem limites, um modelo com vazamento de memória pode derrubar todos os outros c
 
 ---
 
-## Problema 9: Preciso Colocar em Produção
+## Problema 9: Preciso Compartilhar Essa Imagem
 
-O `compose.yaml` funciona para dev. Mas para produção, você precisa de uma imagem otimizada, CI/CD que builda automaticamente, e deploy sem downtime.
+Você buildou a imagem, testou localmente, tudo funciona. Agora um colega quer rodar a mesma API — ou você precisa deployar num servidor. Como compartilhar?
 
-### Dockerfile de Produção Completo
+Enviar o código e pedir para a pessoa rodar `docker build` funciona, mas ela vai precisar do `model.pkl`, das dependências, e torcer para dar tudo certo. O ponto todo do Docker é evitar isso.
 
-Este é o Dockerfile final — aplicando tudo que aprendemos:
+### Solução: Container Registry
+
+Um container registry é como o GitHub, mas para imagens Docker. Você faz `push` da imagem; quem quiser rodar faz `pull`. O modelo, as dependências, o código — **tudo vai junto dentro da imagem**.
+
+Vamos usar o **GitHub Container Registry (GHCR)**, que é gratuito para repositórios públicos:
+
+```bash
+# 1. Login no GHCR (use um Personal Access Token com permissão write:packages)
+docker login ghcr.io -u SEU_USUARIO
+
+# 2. Taguear a imagem com o endereço do registry
+docker tag ml-api:v1 ghcr.io/SEU_USUARIO/ml-api:v1
+
+# 3. Push
+docker push ghcr.io/SEU_USUARIO/ml-api:v1
+```
+
+Pronto. Agora qualquer pessoa (ou servidor) pode rodar:
+
+```bash
+docker pull ghcr.io/SEU_USUARIO/ml-api:v1
+docker run -d -p 8000:8000 ghcr.io/SEU_USUARIO/ml-api:v1
+```
+
+Sem instalar Python, sem instalar dependências, sem precisar do `model.pkl` separado. Tudo está dentro da imagem.
+
+> **Docker Hub vs GHCR**: Docker Hub é o registry mais popular (onde ficam `python:3.12-slim`, `postgres:16-alpine`). GHCR é conveniente se seu código já está no GitHub — as permissões seguem as do repositório. Ambos são gratuitos para imagens públicas.
+
+### E em Ambientes Corporativos?
+
+GHCR e Docker Hub são ótimos para projetos open-source, mas se seu modelo é proprietário, você precisa de um registry privado. As principais clouds oferecem registries integrados:
+
+| Cloud | Registry | Login |
+|-------|----------|-------|
+| **AWS** | Amazon ECR | `aws ecr get-login-password \| docker login` |
+| **GCP** | Artifact Registry | `gcloud auth configure-docker` |
+
+Privados por padrão, com controle de acesso via IAM — mesmas permissões que seu time já usa na cloud.
+
+Na prática, ninguém faz `git clone` + `docker build` no servidor de produção. O fluxo real é: dev pusha código → CI/CD builda a imagem e pusha para o registry → servidor de produção faz `docker pull` e roda. O registry é o meio de campo entre o código e o deploy.
+
+### Versionando com Tags
+
+Tags são como versões da sua imagem:
+
+```bash
+docker tag ml-api:v1 ghcr.io/SEU_USUARIO/ml-api:v1
+docker tag ml-api:v1 ghcr.io/SEU_USUARIO/ml-api:latest
+docker push ghcr.io/SEU_USUARIO/ml-api:v1
+docker push ghcr.io/SEU_USUARIO/ml-api:latest
+```
+
+Isso é especialmente útil para modelos de ML: retreinou o modelo? Builde uma nova imagem com `v2`, faça push. O modelo antigo continua disponível em `v1` se precisar fazer rollback.
+
+---
+
+## Problema 10: Preciso Automatizar o Deploy
+
+Fazer `docker build` e `docker push` manualmente funciona, mas é propenso a erro. Esqueceu de buildar? Publicou a imagem errada? Em produção, você quer que isso seja automático.
+
+### Dockerfile de Produção
+
+Antes de automatizar, vamos montar o Dockerfile final — aplicando tudo que aprendemos:
 
 ```dockerfile
 # syntax=docker/dockerfile:1
-
-# ─── Build ────────────────────────────────────────
-FROM python:3.12-slim AS builder
-WORKDIR /app
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc g++ \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY requirements.txt .
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --prefix=/install --no-cache-dir -r requirements.txt
-
-# ─── Production ───────────────────────────────────
 FROM python:3.12-slim
 WORKDIR /app
 
 RUN groupadd -r appuser && useradd --no-log-init -r -g appuser appuser
 
-COPY --from=builder /install /usr/local
+COPY requirements.txt .
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir -r requirements.txt
+
 COPY --chown=appuser:appuser . .
+
+# Treinar o modelo dentro do container garante compatibilidade de versões
+RUN python train_model.py
 
 ENV PYTHONUNBUFFERED=1
 EXPOSE 8000
@@ -701,10 +705,13 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--worker
 ```
 
 Destaques:
+- **`RUN python train_model.py`** — treinar dentro do container elimina incompatibilidades de versão (ex: treinou com scikit-learn 1.8 no Mac, container tem 1.5 → erro)
 - **`--mount=type=cache`** — cache do pip persiste entre builds (BuildKit)
 - **`PYTHONUNBUFFERED=1`** — logs aparecem imediatamente, sem buffer
 - **`--workers 4`** — múltiplos workers para produção (Uvicorn com workers precisa de `uvicorn[standard]`)
-- **Usuário não-root**, health check, imagem slim, multi-stage
+- **Usuário não-root**, health check, imagem slim
+
+> **E para modelos que demoram horas para treinar?** O `RUN python train_model.py` funciona para modelos pequenos como o nosso. Para modelos grandes, o padrão em MLOps é usar um **model registry** (MLflow, Weights & Biases, ou simplesmente S3/GCS). O CI/CD baixa o modelo treinado durante o build: `RUN aws s3 cp s3://meu-bucket/models/model-v2.pkl models/model.pkl`. O treino acontece em outro pipeline (com GPU), e o Dockerfile só empacota o resultado.
 
 ### CI/CD com GitHub Actions
 
@@ -737,9 +744,11 @@ jobs:
           cache-to: type=gha,mode=max
 ```
 
-Cada push: build automático, cache inteligente, imagem versionada pelo commit SHA.
+Cada push na main: build automático, cache inteligente, imagem versionada pelo commit SHA.
 
 ### compose.yaml de Produção
+
+Em produção, em vez de `build: .`, use a imagem do registry:
 
 ```yaml
 name: ml-api-prod
@@ -820,7 +829,7 @@ secrets:
 
 ---
 
-## Problema 10: Algo Deu Errado em Produção
+## Problema 11: Algo Deu Errado em Produção
 
 A API retorna 500. O container está rodando, mas as predições falham. Como investigar?
 
@@ -899,7 +908,94 @@ docker compose build --no-cache      # Mesmo efeito no Compose
 
 ---
 
+## Problema 12: Preciso Que Isso Rode na Cloud
+
+A imagem está no registry, o CI/CD funciona, mas a API ainda roda na sua máquina. Para atender usuários de verdade, precisa estar na cloud.
+
+Vamos ver as duas opções mais simples — sem Kubernetes, sem complexidade desnecessária.
+
+### Opção 1: Google Cloud Run
+
+Cloud Run é a forma mais simples de deployar um container. Serverless: escala automaticamente (inclusive a zero — você não paga quando ninguém está usando).
+
+```bash
+# 1. Autenticar e configurar
+gcloud auth login
+gcloud config set project SEU_PROJETO
+
+# 2. Buildar e push para o Artifact Registry (ou usar a imagem do GHCR)
+gcloud builds submit --tag gcr.io/SEU_PROJETO/ml-api:v1
+
+# 3. Deploy
+gcloud run deploy ml-api \
+  --image gcr.io/SEU_PROJETO/ml-api:v1 \
+  --port 8000 \
+  --region us-central1 \
+  --allow-unauthenticated
+```
+
+Pronto. Em ~2 minutos você recebe uma URL pública. Teste:
+
+```bash
+curl https://ml-api-xxxxx-uc.a.run.app/health
+# {"status": "healthy"}
+```
+
+Para variáveis de ambiente e secrets:
+
+```bash
+gcloud run deploy ml-api \
+  --image gcr.io/SEU_PROJETO/ml-api:v1 \
+  --port 8000 \
+  --region us-central1 \
+  --set-env-vars="PYTHONUNBUFFERED=1" \
+  --set-secrets="DATABASE_URL=db-url:latest"
+```
+
+### Opção 2: AWS App Runner
+
+App Runner é o equivalente na AWS — simples como o Cloud Run.
+
+```bash
+# 1. Push da imagem para o ECR
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 123456789.dkr.ecr.us-east-1.amazonaws.com
+docker tag ml-api:v1 123456789.dkr.ecr.us-east-1.amazonaws.com/ml-api:v1
+docker push 123456789.dkr.ecr.us-east-1.amazonaws.com/ml-api:v1
+
+# 2. Criar o serviço via CLI
+aws apprunner create-service \
+  --service-name ml-api \
+  --source-configuration '{
+    "ImageRepository": {
+      "ImageIdentifier": "123456789.dkr.ecr.us-east-1.amazonaws.com/ml-api:v1",
+      "ImageRepositoryType": "ECR",
+      "ImageConfiguration": {"Port": "8000"}
+    },
+    "AutoDeploymentsEnabled": true
+  }'
+```
+
+App Runner também escala automaticamente e suporta auto-deploy quando a imagem é atualizada no ECR.
+
+> **Quanto custa?** Ambos cobram por uso (CPU + memória enquanto a API está processando requests). Para APIs de ML com tráfego irregular, o "escalar a zero" do Cloud Run é imbatível — você paga literalmente nada quando não há tráfego. App Runner mantém pelo menos uma instância ativa por padrão, mas pode ser configurado para escalar a zero também.
+
+> **E Kubernetes?** EKS (AWS) e GKE (GCP) são opções para quando você precisa de orquestração complexa — múltiplos serviços, auto-scaling sofisticado, GPU scheduling. Mas para uma API de ML servindo predições, Cloud Run ou App Runner resolvem com uma fração da complexidade e do custo operacional.
+
+---
+
 ## Bônus: Workflow Diário com Docker
+
+### Preciso Desenvolver Dentro do Docker?
+
+Não necessariamente. Na prática, a maioria dos times usa um mix:
+
+- **Código roda local** — mais rápido, hot-reload nativo, debugger do IDE funciona direto. Para iterar rápido, nada bate rodar no seu terminal.
+- **Dependências rodam no Docker** — Postgres, Redis, filas. O `compose.yaml` sobe esses serviços enquanto sua API roda local apontando para `localhost:5432`.
+- **Docker para validação final** — antes de commitar, `docker compose up` para testar tudo junto no mesmo ambiente que produção.
+
+Desenvolver 100% dentro do Docker funciona, mas é mais lento e o developer experience é pior. Desenvolver 100% local é rápido, mas é o caminho para o "na minha máquina funciona". O meio-termo é o padrão da indústria.
+
+### O Dia a Dia
 
 Depois de configurar tudo, o dia a dia é simples:
 
@@ -1058,15 +1154,17 @@ Começamos com uma API FastAPI que só funcionava localmente. Ao longo do guia, 
 | Problema | Conceito Docker | Solução |
 |----------|----------------|---------|
 | "Na minha máquina funciona" | **Dockerfile** | Empacotar tudo em uma imagem |
-| Imagem de 1.2GB | **Multi-stage build** | Separar build de produção |
+| Docker copiando lixo e segredos | **`.dockerignore`** | Filtrar o que entra na imagem |
 | Rebuild lento a cada mudança | **Cache de camadas** | Ordenar instruções estrategicamente |
 | Preciso de PostgreSQL | **Docker Compose** | Definir múltiplos serviços em YAML |
 | Dados somem ao reiniciar | **Volumes** | Persistir dados fora do container |
 | API não encontra o banco | **Networking** | DNS automático entre serviços |
 | Predições lentas para dados repetidos | **Serviços adicionais** | Redis como cache no stack |
 | Rodando como root | **Segurança** | USER, secrets, limites de recursos |
-| Preciso deployar | **CI/CD + registry** | GitHub Actions + GHCR |
+| Preciso compartilhar a imagem | **Container registry** | docker push/pull via GHCR |
+| Preciso automatizar o deploy | **CI/CD** | GitHub Actions + compose de produção |
 | Erro em produção | **Debugging** | Logs, exec, docker debug |
+| Preciso rodar na cloud | **Cloud deploy** | Cloud Run, App Runner |
 
 Cada conceito resolveu um problema concreto. Não existe razão para decorar comandos Docker sem contexto — agora você sabe **por que** cada um existe.
 
