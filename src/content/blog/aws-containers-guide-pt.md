@@ -73,9 +73,92 @@ Antes de começar, as restrições que importam:
 
 Se seu scraper termina em menos de 15 minutos, Lambda é a escolha certa. Se não, pule para o Nível 2 (Fargate).
 
-### Passo 1: Preparar o Dockerfile para Lambda
+### Preciso de Docker?
 
-Lambda com container exige que a imagem implemente a **Runtime Interface** da AWS. O jeito mais fácil: usar a imagem base da AWS.
+Não necessariamente. Lambda aceita dois formatos de deploy:
+
+| Formato | Limite de tamanho | Quando usar |
+|---------|------------------|-------------|
+| **ZIP** | 50 MB (zip) / 250 MB (descompactado) | Aplicações leves, poucas dependências |
+| **Container** | 10 GB | Dependências pesadas (ML, numpy, scipy), ambiente complexo |
+
+Para um scraper Python com poucas dependências, ZIP é mais simples. Se seu projeto já é um pacote instalável com `pip install -e .` ou `uv pip install -e .`, melhor ainda.
+
+### Caminho A: Deploy com ZIP (Sem Docker)
+
+O jeito mais rápido de subir uma Lambda — sem Docker, sem ECR, sem nada.
+
+**Passo 1: Empacotar as dependências**
+
+```bash
+# Criar diretório de empacotamento
+mkdir -p package
+
+# Instalar dependências no diretório
+pip install -r requirements.txt -t package/
+
+# Copiar seu código
+cp scraper.py package/
+
+# Zipar tudo
+cd package && zip -r ../lambda.zip . && cd ..
+```
+
+Se você usa `uv` e seu projeto é um CLI instalável:
+
+```bash
+mkdir -p package
+uv pip install . -t package/
+cd package && zip -r ../lambda.zip . && cd ..
+```
+
+**Passo 2: Criar a função**
+
+```bash
+AWS_ACCOUNT=123456789012
+AWS_REGION=us-east-1
+
+aws lambda create-function \
+  --function-name news-scraper \
+  --runtime python3.12 \
+  --handler scraper.handler \
+  --zip-file fileb://lambda.zip \
+  --role arn:aws:iam::$AWS_ACCOUNT:role/lambda-execution-role \
+  --memory-size 512 \
+  --timeout 900 \
+  --region $AWS_REGION
+```
+
+**Para atualizar:**
+
+```bash
+# Reempacotar
+cd package && zip -r ../lambda.zip . && cd ..
+
+# Atualizar a função
+aws lambda update-function-code \
+  --function-name news-scraper \
+  --zip-file fileb://lambda.zip
+```
+
+Simples. Sem Docker, sem registry, sem build de imagem. Se o zip ficar maior que 50 MB, suba para S3 e referencie de lá:
+
+```bash
+aws s3 cp lambda.zip s3://meu-bucket/lambda/news-scraper.zip
+
+aws lambda update-function-code \
+  --function-name news-scraper \
+  --s3-bucket meu-bucket \
+  --s3-key lambda/news-scraper.zip
+```
+
+> **Quando ZIP não basta**: se suas dependências descompactadas passam de 250 MB (comum com numpy, pandas, scikit-learn), você precisa do caminho B (container). Libs de ML tipicamente estouram esse limite.
+
+### Caminho B: Deploy com Container
+
+Para projetos com dependências pesadas ou quando você quer o mesmo ambiente local e na cloud.
+
+**Passo 1: Dockerfile para Lambda**
 
 ```dockerfile
 FROM public.ecr.aws/lambda/python:3.12
@@ -88,18 +171,12 @@ COPY scraper.py .
 CMD ["scraper.handler"]
 ```
 
-A diferença de um Dockerfile normal: a imagem base `public.ecr.aws/lambda/python:3.12` já inclui o runtime da Lambda. O `CMD` aponta para a função handler (`arquivo.função`).
+A imagem base `public.ecr.aws/lambda/python:3.12` já inclui o runtime da Lambda. O `CMD` aponta para a função handler (`arquivo.função`).
 
-### Passo 2: Criar o Repositório no ECR e Subir a Imagem
-
-Antes de usar qualquer serviço da AWS com containers, você precisa subir a imagem para o **Amazon ECR** (Elastic Container Registry) — o registry privado da AWS.
+**Passo 2: Subir para o ECR**
 
 ```bash
-# Variáveis (ajuste para sua conta)
-AWS_ACCOUNT=123456789012
-AWS_REGION=us-east-1
-
-# Criar o repositório
+# Criar repositório no ECR (o registry privado da AWS)
 aws ecr create-repository \
   --repository-name news-scraper \
   --image-scanning-configuration scanOnPush=true \
@@ -115,6 +192,19 @@ docker tag news-scraper:latest $AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/ne
 docker push $AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/news-scraper:latest
 ```
 
+**Passo 3: Criar a função**
+
+```bash
+aws lambda create-function \
+  --function-name news-scraper \
+  --package-type Image \
+  --code ImageUri=$AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/news-scraper:latest \
+  --role arn:aws:iam::$AWS_ACCOUNT:role/lambda-execution-role \
+  --memory-size 512 \
+  --timeout 900 \
+  --region $AWS_REGION
+```
+
 > **Dica de custo**: ECR cobra $0.10/GB/mês. Adicione uma lifecycle policy para manter só as últimas 5 imagens:
 > ```bash
 > aws ecr put-lifecycle-policy \
@@ -128,24 +218,41 @@ docker push $AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/news-scraper:latest
 >   }'
 > ```
 
-### Passo 3: Criar a Função Lambda
+### Criar a IAM Role
+
+Independente do caminho (ZIP ou container), a Lambda precisa de uma role:
 
 ```bash
-# Criar a função a partir da imagem no ECR
-aws lambda create-function \
-  --function-name news-scraper \
-  --package-type Image \
-  --code ImageUri=$AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/news-scraper:latest \
-  --role arn:aws:iam::$AWS_ACCOUNT:role/lambda-execution-role \
-  --memory-size 512 \
-  --timeout 900 \
-  --region $AWS_REGION
-```
+# Criar a role
+aws iam create-role \
+  --role-name lambda-execution-role \
+  --assume-role-policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [{
+      "Effect": "Allow",
+      "Principal": {"Service": "lambda.amazonaws.com"},
+      "Action": "sts:AssumeRole"
+    }]
+  }'
 
-A role `lambda-execution-role` precisa de permissões para:
-- Escrever logs no CloudWatch (inclusa na policy gerenciada `AWSLambdaBasicExecutionRole`)
-- Acessar o S3 (para salvar os artigos)
-- Qualquer outra coisa que seu scraper precise (Bedrock, OpenSearch, etc.)
+# Permissão básica (logs)
+aws iam attach-role-policy \
+  --role-name lambda-execution-role \
+  --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+# Adicione o que seu scraper precisar (S3, Bedrock, OpenSearch, etc.)
+aws iam put-role-policy \
+  --role-name lambda-execution-role \
+  --policy-name s3-write \
+  --policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [{
+      "Effect": "Allow",
+      "Action": ["s3:PutObject"],
+      "Resource": "arn:aws:s3:::meu-bucket-artigos/*"
+    }]
+  }'
+```
 
 ### Passo 4: Agendar com EventBridge Scheduler
 
