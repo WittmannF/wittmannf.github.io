@@ -24,13 +24,13 @@ A aplicação real que usamos como exemplo é um scraper de notícias de IA: col
 A aplicação tem uma CLI clara:
 
 ```bash
-# 1. Coleta artigos do Google News
+# 1. Collect articles from Google News
 scraper run --connector google_news
 
-# 2. Enriquece com LLM (topic, description, abstract, tags)
+# 2. Enrich with LLM (topic, description, abstract, tags)
 scraper enrich run data/raw/google_news/2026-04-22/batch_123456.jsonl.gz
 
-# 3. Indexa no OpenSearch (só o batch específico, não o diretório inteiro)
+# 3. Index into OpenSearch (only this batch, not the whole directory)
 scraper ingest run --data-dir data/enriched/google_news/2026-04-22 --file batch_123456.jsonl.gz
 ```
 
@@ -62,7 +62,7 @@ A analogia útil: antes de existir o container de carga padronizado, cada tipo d
 Antes de criar o Dockerfile, gere o lockfile do `uv` — ele é o equivalente ao `package-lock.json` do npm: garante que a instalação seja 100% idêntica em qualquer máquina ou build:
 
 ```bash
-# No diretório do scraper
+# Run from the scraper directory
 uv lock
 ```
 
@@ -79,11 +79,11 @@ COPY --from=uv-bin /uv /usr/local/bin/uv
 
 WORKDIR /app
 
-# Passo 1: instala só as dependências (camada cacheada)
+# Step 1: install dependencies only (cached layer)
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
-# Passo 2: copia o código e instala o projeto (cria o entry point "scraper")
+# Step 2: copy source and install the project (creates the "scraper" entry point)
 COPY scraper/ scraper/
 RUN uv sync --frozen --no-dev
 
@@ -114,10 +114,10 @@ Linha por linha:
 Construa e teste:
 
 ```bash
-# Dentro do diretório do scraper
+# Run from the scraper directory
 docker build -t scraper:hello .
 
-# Verifica que a CLI funciona
+# Verify the CLI is available
 docker run --rm scraper:hello
 ```
 
@@ -136,10 +136,10 @@ Resultado: build lento, imagem grande, e às vezes dados sensíveis dentro da im
 Crie um arquivo `.dockerignore` na raiz do projeto:
 
 ```
-# Ambiente virtual — recriamos dentro do container
+# Virtual environment — rebuilt inside the container
 .venv/
 
-# Dados locais — não entram na imagem
+# Local data — never goes into the image
 data/
 logs/
 
@@ -147,11 +147,11 @@ logs/
 .git/
 .gitignore
 
-# Variáveis de ambiente — NUNCA entram na imagem
+# Environment variables — NEVER goes into the image
 .env
 *.env
 
-# Cache Python
+# Python cache
 __pycache__/
 *.pyc
 *.pyo
@@ -162,7 +162,7 @@ dist/
 build/
 *.egg-info/
 
-# Terraform (se estiver na raiz)
+# Terraform (if at the project root)
 .terraform/
 *.tfstate
 ```
@@ -197,11 +197,11 @@ COPY --from=uv-bin /uv /usr/local/bin/uv
 
 WORKDIR /app
 
-# Dependências PRIMEIRO — essa camada fica em cache enquanto o uv.lock não mudar
+# Dependencies FIRST — this layer is cached as long as uv.lock doesn't change
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
-# Código por ÚLTIMO — muda frequentemente, mas não invalida o cache acima
+# Source code LAST — changes frequently but doesn't invalidate the cache above
 COPY scraper/ scraper/
 RUN uv sync --frozen --no-dev
 
@@ -241,7 +241,7 @@ docker run --rm \
 Para testar localmente sem repetir as variáveis toda hora, você pode usar um arquivo `.env` **junto com `--env-file`**:
 
 ```bash
-# .env (nunca commitar este arquivo)
+# .env (never commit this file)
 AWS_REGION=us-east-1
 OPENSEARCH_HOST=meu-endpoint.us-east-1.aoss.amazonaws.com
 INDEX_NAME=newsletter-articles
@@ -314,15 +314,15 @@ O Crawl4AI precisa baixar e inicializar um browser Chromium, o que pode levar de
 ```bash
 #!/usr/bin/env bash
 #
-# Google News pipeline para Fargate: scrape → enrich → ingest
-# Baseado em scripts/google_news_pipeline.sh (versão local/cron)
+# Google News pipeline for Fargate: scrape → enrich → ingest
+# Based on scripts/google_news_pipeline.sh (local/cron version)
 #
 set -euo pipefail
 
 log() { echo "[$(date '+%H:%M:%S')] $*"; }
 
-# ── Espera o Crawl4AI estar disponível ──
-log "=== Aguardando Crawl4AI em localhost:11235 ==="
+# ── Wait for Crawl4AI to be ready ──
+log "=== Waiting for Crawl4AI on localhost:11235 ==="
 
 python3 - <<'PY'
 import socket, time, sys
@@ -333,12 +333,12 @@ for attempt in range(60):
         s.settimeout(2)
         s.connect(("127.0.0.1", 11235))
         s.close()
-        print(f"  Crawl4AI disponível após {attempt * 2}s")
+        print(f"  Crawl4AI ready after {attempt * 2}s")
         sys.exit(0)
     except Exception:
         time.sleep(2)
 
-print("ERRO: Crawl4AI não ficou disponível em 120s", file=sys.stderr)
+print("ERROR: Crawl4AI did not become ready within 120s", file=sys.stderr)
 sys.exit(1)
 PY
 
@@ -346,11 +346,11 @@ PY
 log "=== Scrape ==="
 OUTPUT=$(scraper run --connector google_news 2>&1 | tee /dev/stderr)
 
-# Extrai o caminho do batch file do output do scraper
+# Extract batch file path from scraper output
 BATCH_FILE=$(echo "$OUTPUT" | grep -o 'data/raw/google_news/[^ ]*\.jsonl[^ ]*' | head -1)
 
 if [ -z "${BATCH_FILE:-}" ]; then
-    log "Nenhum batch produzido. Saindo."
+    log "No batch produced. Exiting."
     exit 0
 fi
 log "Batch: $BATCH_FILE"
@@ -359,20 +359,20 @@ log "Batch: $BATCH_FILE"
 log "=== Enrich ==="
 scraper enrich run "$BATCH_FILE"
 
-# ── 3. Ingest (só o batch que acabou de enriquecer, não o diretório inteiro) ──
+# ── 3. Ingest (only the batch we just enriched, not the whole directory) ──
 BATCH_NAME=$(basename "$BATCH_FILE")
 ENRICHED_DIR="data/enriched/google_news/$(date -u +%Y-%m-%d)"
 ENRICHED_FILE="$ENRICHED_DIR/$BATCH_NAME"
 
 if [ -f "$ENRICHED_FILE" ]; then
     log "=== Ingest ==="
-    log "Ingerindo: $ENRICHED_FILE"
+    log "Ingesting: $ENRICHED_FILE"
     scraper ingest run --data-dir "$ENRICHED_DIR" --file "$BATCH_NAME"
 else
-    log "Arquivo enriquecido não encontrado em $ENRICHED_FILE, pulando ingest."
+    log "Enriched file not found at $ENRICHED_FILE, skipping ingest."
 fi
 
-log "=== Pipeline concluído ==="
+log "=== Pipeline done ==="
 ```
 
 Torne o script executável:
@@ -472,18 +472,18 @@ Para isso, o container precisa ter acesso à internet — seja por subnet públi
 A AWS cria uma **VPC default** em cada região quando você cria a conta. É a mais simples de usar para começar. Para encontrá-la:
 
 ```bash
-# Descobre a VPC default
+# Find the default VPC
 aws ec2 describe-vpcs \
   --filters "Name=isDefault,Values=true" \
   --profile homegenius-admin \
   --region us-east-1 \
   --query "Vpcs[0].VpcId" \
   --output text
-# Resultado: vpc-xxxxxxxxxx
+# Output: vpc-xxxxxxxxxx
 
-# Descobre as subnets dessa VPC
+# Find subnets in that VPC
 aws ec2 describe-subnets \
-  --filters "Name=vpc-id,Values=<VPC_ID_ACIMA>" \
+  --filters "Name=vpc-id,Values=<VPC_ID_ABOVE>" \
   --profile homegenius-admin \
   --region us-east-1 \
   --query "Subnets[*].[SubnetId,AvailabilityZone,MapPublicIpOnLaunch]" \
@@ -525,7 +525,7 @@ Antes de partir para a infra completa, vamos testar se o S3 está funcionando co
 **Passo 1: Crie um bucket de teste pelo CLI**
 
 ```bash
-# Escolha um nome único (buckets S3 são globais na AWS)
+# Pick a unique name (S3 bucket names are global across all AWS accounts)
 BUCKET_NAME="newsletter-scraper-test-$(aws sts get-caller-identity \
   --profile homegenius-admin \
   --query Account \
@@ -541,14 +541,14 @@ aws s3 mb "s3://${BUCKET_NAME}" \
 **Passo 2: Teste o upload manualmente**
 
 ```bash
-# Cria um arquivo de teste
+# Create a test file
 echo '{"test": "hello s3"}' > /tmp/test.jsonl
 
-# Faz upload
+# Upload
 aws s3 cp /tmp/test.jsonl "s3://${BUCKET_NAME}/test/hello.jsonl" \
   --profile homegenius-admin
 
-# Confirma que chegou
+# Confirm it arrived
 aws s3 ls "s3://${BUCKET_NAME}/test/" \
   --profile homegenius-admin
 ```
@@ -556,14 +556,14 @@ aws s3 ls "s3://${BUCKET_NAME}/test/" \
 **Passo 3: Rode o scraper localmente apontando para o S3**
 
 ```bash
-# Adiciona ao .env
+# Append to .env
 echo "AWS_S3_BUCKET=${BUCKET_NAME}" >> .env
 
-# Roda (sem --local, para ir ao S3)
+# Run (without --local, so it goes to S3)
 source .venv/bin/activate
 scraper run --connector google_news
 
-# Verifica se chegou no S3
+# Verify files arrived in S3
 aws s3 ls "s3://${BUCKET_NAME}/raw/google_news/" \
   --profile homegenius-admin \
   --recursive
@@ -636,10 +636,10 @@ Terraform resolve tudo isso: você escreve o que quer que exista, e o Terraform 
 **O ciclo básico:**
 
 ```bash
-terraform init    # Baixa os plugins necessários (só na primeira vez)
-terraform plan    # "O que eu vou criar/alterar/destruir?"
-terraform apply   # Executa o plano
-terraform destroy # Destroi tudo (use com cuidado!)
+terraform init    # Download required plugins (first time only)
+terraform plan    # Preview what will be created/changed/destroyed
+terraform apply   # Execute the plan
+terraform destroy # Tear everything down (use with care!)
 ```
 
 O `terraform plan` é seu melhor amigo — sempre rode antes do `apply` e leia o que vai ser criado.
@@ -785,22 +785,22 @@ variable "schedule_expression" {
 
 variable "vpc_id" {
   type        = string
-  description = "ID da VPC onde o container vai rodar (ex: vpc-xxxxxxxxxx)"
+  description = "VPC ID where the container will run (e.g. vpc-xxxxxxxxxx)"
 }
 
 variable "subnet_ids" {
   type        = list(string)
-  description = "IDs das subnets públicas (ex: [\"subnet-aaa\", \"subnet-bbb\"])"
+  description = "Public subnet IDs (e.g. [\"subnet-aaa\", \"subnet-bbb\"])"
 }
 
 variable "opensearch_host" {
   type        = string
-  description = "Host do OpenSearch Serverless (sem https://)"
+  description = "OpenSearch Serverless host (without https://)"
 }
 
 variable "opensearch_collection_arn" {
   type        = string
-  description = "ARN da collection do OpenSearch Serverless"
+  description = "ARN of the OpenSearch Serverless collection"
 }
 
 variable "index_name" {
@@ -821,7 +821,7 @@ variable "bedrock_model_id" {
 variable "tavily_secret_arn" {
   type        = string
   default     = ""
-  description = "ARN do secret do Tavily API key no Secrets Manager (opcional)"
+  description = "ARN of the Tavily API key secret in Secrets Manager (optional)"
 }
 ```
 
@@ -886,7 +886,7 @@ resource "aws_s3_bucket_public_access_block" "artifacts" {
 
 ```hcl
 # ──────────────────────────────────────────────
-# Execution Role — usada pelo ECS para iniciar o container
+# Execution Role — used by ECS to start the container
 # ──────────────────────────────────────────────
 resource "aws_iam_role" "ecs_execution" {
   name = "${var.project_name}-execution-role"
@@ -906,7 +906,7 @@ resource "aws_iam_role_policy_attachment" "ecs_execution_managed" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-# Permissão extra para ler secrets do Secrets Manager (Tavily key)
+# Extra permission to read Secrets Manager (Tavily API key)
 resource "aws_iam_role_policy" "ecs_execution_secrets" {
   count = var.tavily_secret_arn != "" ? 1 : 0
 
@@ -924,7 +924,7 @@ resource "aws_iam_role_policy" "ecs_execution_secrets" {
 }
 
 # ──────────────────────────────────────────────
-# Task Role — usada pelo código dentro do container
+# Task Role — used by application code inside the container
 # ──────────────────────────────────────────────
 resource "aws_iam_role" "ecs_task" {
   name = "${var.project_name}-task-role"
@@ -985,7 +985,7 @@ resource "aws_iam_role_policy" "ecs_task_opensearch" {
 }
 
 # ──────────────────────────────────────────────
-# Scheduler Role — usada pelo EventBridge para chamar o ECS
+# Scheduler Role — used by EventBridge to invoke ECS
 # ──────────────────────────────────────────────
 resource "aws_iam_role" "scheduler" {
   name = "${var.project_name}-scheduler-role"
@@ -1045,11 +1045,11 @@ resource "aws_ecs_cluster" "scraper" {
 
 resource "aws_security_group" "scraper_task" {
   name        = "${var.project_name}-task-sg"
-  description = "Scraper ECS task — saída para internet liberada, sem entrada"
+  description = "Scraper ECS task — outbound to internet allowed, no inbound"
   vpc_id      = var.vpc_id
 
   egress {
-    description = "Saída total para internet (Bedrock, OpenSearch, Google News)"
+    description = "Full outbound to internet (Bedrock, OpenSearch, Google News)"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -1060,7 +1060,7 @@ resource "aws_security_group" "scraper_task" {
 locals {
   scraper_image_uri = "${aws_ecr_repository.scraper.repository_url}:${var.image_tag}"
 
-  # Variáveis de ambiente para o container do scraper
+  # Environment variables for the scraper container
   scraper_env = [
     { name = "AWS_REGION",          value = var.aws_region },
     { name = "OPENSEARCH_HOST",     value = var.opensearch_host },
@@ -1070,7 +1070,7 @@ locals {
     { name = "AWS_S3_BUCKET",       value = aws_s3_bucket.artifacts.bucket },
   ]
 
-  # Se o secret do Tavily foi configurado, adiciona via secretsFrom
+  # If Tavily secret is configured, inject it via secretsFrom
   tavily_secrets = var.tavily_secret_arn != "" ? [
     {
       name      = "TAVILY_API_KEY"
@@ -1195,12 +1195,12 @@ resource "aws_scheduler_schedule" "scraper" {
 ```hcl
 output "ecr_repository_url" {
   value       = aws_ecr_repository.scraper.repository_url
-  description = "URL do repositório ECR — use para o docker push"
+  description = "ECR repository URL — use for docker push"
 }
 
 output "s3_bucket_name" {
   value       = aws_s3_bucket.artifacts.bucket
-  description = "Nome do bucket S3 de artefatos"
+  description = "Artifacts S3 bucket name"
 }
 
 output "ecs_cluster_name" {
@@ -1209,12 +1209,12 @@ output "ecs_cluster_name" {
 
 output "task_role_arn" {
   value       = aws_iam_role.ecs_task.arn
-  description = "ARN da task role — adicione na data access policy do OpenSearch"
+  description = "Task role ARN — add to the OpenSearch data access policy"
 }
 
 output "log_group_name" {
   value       = aws_cloudwatch_log_group.scraper.name
-  description = "Nome do log group no CloudWatch"
+  description = "CloudWatch log group name"
 }
 ```
 
@@ -1230,11 +1230,11 @@ image_tag    = "latest"
 
 schedule_expression = "rate(30 minutes)"
 
-# Preencha com o resultado dos comandos aws ec2 describe-vpcs e describe-subnets
+# Fill in with results from: aws ec2 describe-vpcs and describe-subnets
 vpc_id     = "vpc-xxxxxxxxxx"
 subnet_ids = ["subnet-aaaaaaa", "subnet-bbbbbbb"]
 
-# Seu endpoint OpenSearch (sem https://)
+# Your OpenSearch endpoint (without https://)
 opensearch_host           = "xxxxxxxxxxxx.us-east-1.aoss.amazonaws.com"
 opensearch_collection_arn = "arn:aws:aoss:us-east-1:123456789012:collection/xxxxxxxxxx"
 
@@ -1242,7 +1242,7 @@ index_name         = "newsletter-articles"
 embedding_model_id = "amazon.titan-embed-text-v2:0"
 bedrock_model_id   = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
 
-# Se não tiver Tavily: deixe em branco
+# Leave empty if not using Tavily
 tavily_secret_arn = ""
 ```
 
@@ -1338,30 +1338,30 @@ Confirme com `yes` quando solicitado.
 
 ```bash
 terraform output ecr_repository_url
-# Resultado: 123456789012.dkr.ecr.us-east-1.amazonaws.com/newsletter/scraper
+# Output: 123456789012.dkr.ecr.us-east-1.amazonaws.com/newsletter/scraper
 ```
 
 ### Passo 5: Buildar e Fazer Push da Imagem
 
 ```bash
-# Salva a URL do ECR em variável
+# Store ECR URL in a variable
 ECR_URL=$(terraform output -raw ecr_repository_url)
 ACCOUNT_ID=$(echo $ECR_URL | cut -d. -f1)
 
-# Autentica o Docker no ECR
+# Authenticate Docker with ECR
 aws ecr get-login-password \
   --region us-east-1 \
   --profile homegenius-admin \
   | docker login --username AWS --password-stdin "${ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com"
 
-# Builda a imagem (no diretório do scraper, não no infra/)
+# Build the image (from the scraper directory, not infra/)
 cd ..
 docker build --platform linux/amd64 -t newsletter-scraper:latest .
 
-# Tageia para o ECR
+# Tag for ECR
 docker tag newsletter-scraper:latest "${ECR_URL}:latest"
 
-# Faz push
+# Push
 docker push "${ECR_URL}:latest"
 ```
 
@@ -1401,7 +1401,7 @@ Agora adicione esse ARN na data access policy da sua collection OpenSearch Serve
 Antes de esperar o agendamento, teste manualmente:
 
 ```bash
-# Descobre as subnets e security group
+# Look up cluster name and task definition ARN
 CLUSTER=$(terraform output -raw ecs_cluster_name)
 TASK_DEF=$(terraform output -raw task_definition_arn 2>/dev/null || \
   aws ecs describe-task-definition \
@@ -1411,7 +1411,7 @@ TASK_DEF=$(terraform output -raw task_definition_arn 2>/dev/null || \
     --query "taskDefinition.taskDefinitionArn" \
     --output text)
 
-# Roda a task manualmente
+# Run the task manually
 aws ecs run-task \
   --cluster "${CLUSTER}" \
   --task-definition newsletter-scraper \
@@ -1424,10 +1424,10 @@ aws ecs run-task \
 ### Passo 9: Acompanhar os Logs
 
 ```bash
-# Descobre o nome do log group
+# Get the log group name
 LOG_GROUP=$(terraform output -raw log_group_name)
 
-# Acompanha os logs do container scraper em tempo real
+# Stream scraper container logs in real time
 aws logs tail "${LOG_GROUP}" \
   --follow \
   --log-stream-name-prefix scraper \
@@ -1490,7 +1490,7 @@ aws ecs list-tasks \
   --profile homegenius-admin \
   --region us-east-1
 
-# Para ver o status e motivo de falha de uma task específica
+# Get status and failure reason for a specific task
 aws ecs describe-tasks \
   --cluster newsletter-scraper-cluster \
   --tasks <TASK_ARN> \
@@ -1532,16 +1532,16 @@ E atualizar o Dockerfile + fazer novo push.
 O ciclo de atualização do código é:
 
 ```bash
-# 1. Faz as mudanças no código
-# 2. Reconstrói a imagem
+# 1. Make code changes
+# 2. Rebuild the image
 docker build --platform linux/amd64 -t newsletter-scraper:latest .
 
-# 3. Tag + push para o ECR
+# 3. Tag + push to ECR
 docker tag newsletter-scraper:latest "${ECR_URL}:latest"
 docker push "${ECR_URL}:latest"
 
-# 4. O próximo run do Scheduler já vai usar a nova imagem
-#    (porque a tag é "latest" e image_tag_mutability = "MUTABLE")
+# 4. The next Scheduler run will pick up the new image automatically
+#    (because the tag is "latest" and image_tag_mutability = "MUTABLE")
 ```
 
 Não precisa de `terraform apply` para atualizar o código — só para mudanças na infraestrutura.
