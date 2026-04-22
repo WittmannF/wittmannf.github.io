@@ -79,12 +79,15 @@ COPY --from=uv-bin /uv /usr/local/bin/uv
 
 WORKDIR /app
 
+# Passo 1: instala só as dependências (camada cacheada)
 COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev --no-install-project
+
+# Passo 2: copia o código e instala o projeto (cria o entry point "scraper")
+COPY scraper/ scraper/
 RUN uv sync --frozen --no-dev
 
 ENV PATH="/app/.venv/bin:$PATH"
-
-COPY scraper/ scraper/
 
 CMD ["scraper", "--help"]
 ```
@@ -98,10 +101,13 @@ Linha por linha:
 | `COPY --from=uv-bin /uv /usr/local/bin/uv` | Copia só o binário do `uv` para dentro da imagem Python |
 | `WORKDIR /app` | Cria e entra no diretório `/app` dentro do container |
 | `COPY pyproject.toml uv.lock ./` | Copia o manifesto e o lockfile de dependências |
-| `RUN uv sync --frozen --no-dev` | Instala exatamente as versões do `uv.lock`, sem dependências de dev |
-| `ENV PATH="/app/.venv/bin:$PATH"` | Adiciona o venv ao PATH — `scraper` vira um comando disponível |
+| `RUN uv sync --frozen --no-dev --no-install-project` | Instala **só** as dependências do `uv.lock` (sem tentar instalar o projeto em si) |
 | `COPY scraper/ scraper/` | Copia o código da aplicação |
+| `RUN uv sync --frozen --no-dev` | Agora instala o projeto — cria o entry point `scraper` no venv |
+| `ENV PATH="/app/.venv/bin:$PATH"` | Adiciona o venv ao PATH — `scraper` vira um comando disponível |
 | `CMD ["scraper", "--help"]` | Comando padrão quando o container iniciar (só para testar) |
+
+> **Por que dois `uv sync`?** O `pyproject.toml` declara um entry point (`scraper = "scraper.main:cli"`). Para criá-lo, o `uv sync` precisa do código-fonte. Mas queremos cachear a instalação das dependências — que são pesadas e mudam pouco. A separação em dois passos resolve: o primeiro (`--no-install-project`) instala só as dependências (camada cacheada), o segundo instala o projeto após o código estar disponível.
 
 > **Por que multi-stage build?** O primeiro `FROM` baixa a imagem do `uv` só para extrair o binário. O segundo `FROM` é a imagem que vai para produção — mais enxuta, sem ferramentas de build desnecessárias. O `COPY --from=uv-bin` copia apenas o binário `/uv` entre as stages.
 
@@ -193,12 +199,13 @@ WORKDIR /app
 
 # Dependências PRIMEIRO — essa camada fica em cache enquanto o uv.lock não mudar
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev
-
-ENV PATH="/app/.venv/bin:$PATH"
+RUN uv sync --frozen --no-dev --no-install-project
 
 # Código por ÚLTIMO — muda frequentemente, mas não invalida o cache acima
 COPY scraper/ scraper/
+RUN uv sync --frozen --no-dev
+
+ENV PATH="/app/.venv/bin:$PATH"
 
 CMD ["scraper", "--help"]
 ```
@@ -209,7 +216,7 @@ Agora edite qualquer arquivo em `scraper/` e reconstrua:
 docker build -t scraper:hello .
 ```
 
-O `uv sync` não vai rodar de novo — vai usar o cache. Só roda de novo se `pyproject.toml` ou `uv.lock` mudarem (ou seja, quando você adicionar uma nova dependência). O build do dia a dia fica muito mais rápido.
+O primeiro `uv sync` (dependências) não vai rodar de novo — vai usar o cache. Só o segundo (instalar o projeto) roda, e é instantâneo. O build do dia a dia fica muito mais rápido.
 
 ---
 
@@ -273,6 +280,7 @@ services:
 
   scraper:
     build: .
+    network_mode: "service:crawl4ai"
     depends_on:
       crawl4ai:
         condition: service_healthy
@@ -282,8 +290,8 @@ services:
     command: >
       sh -c "
         scraper run --connector google_news &&
-        scraper enrich run data/raw/google_news/$(date +%F)/batch_*.jsonl.gz --skip-dedup &&
-        scraper ingest run --data-dir data/enriched/google_news/$(date +%F)/
+        scraper enrich run data/raw/google_news/$$(date +%F)/batch_*.jsonl.gz --skip-dedup &&
+        scraper ingest run --data-dir data/enriched/google_news/$$(date +%F)/
       "
 ```
 
@@ -293,9 +301,11 @@ Suba tudo com:
 docker compose up
 ```
 
-O Compose garante que o `crawl4ai` esteja saudável antes de iniciar o `scraper`. Os dois containers compartilham a mesma rede do Compose, então o `scraper` consegue chamar `http://crawl4ai:11235` — ou `http://localhost:11235` se os containers compartilharem o mesmo namespace de rede (o que acontece no Fargate, como veremos adiante).
+O Compose garante que o `crawl4ai` esteja saudável antes de iniciar o `scraper`.
 
-> **Dica de debugging local:** se o `scraper` falhar antes de o Crawl4AI estar pronto, adicione um `sleep 5` antes do primeiro comando. Em produção no Fargate, vamos resolver isso com um script de espera adequado.
+> **Por que `network_mode: "service:crawl4ai"`?** O código do enricher está hardcodado para chamar `http://localhost:11235`. No Compose normal, cada serviço tem rede separada — `localhost` do scraper aponta para ele mesmo, não para o crawl4ai. O `network_mode: "service:crawl4ai"` faz o scraper **compartilhar a rede** do crawl4ai, exatamente como vai ser no Fargate. Assim `localhost:11235` funciona.
+>
+> Repare também no `$$` antes de `(date ...)` — o `$` simples é interpretado pelo Compose como variável de ambiente. O `$$` escapa para que o shell dentro do container resolva a data corretamente.
 
 ---
 
@@ -377,11 +387,13 @@ COPY --from=uv-bin /uv /usr/local/bin/uv
 WORKDIR /app
 
 COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev --no-install-project
+
+COPY scraper/ scraper/
 RUN uv sync --frozen --no-dev
 
 ENV PATH="/app/.venv/bin:$PATH"
 
-COPY scraper/ scraper/
 COPY scripts/run_pipeline.sh scripts/run_pipeline.sh
 RUN chmod +x scripts/run_pipeline.sh
 
@@ -485,29 +497,33 @@ O Terraform vai criar isso automaticamente. Só estou explicando para você ente
 
 ---
 
-## Parte 3: ECR — Onde a Imagem Fica Armazenada
+## Parte 3: ECR e S3 — Onde Ficam a Imagem e os Dados
 
 **ECR (Elastic Container Registry)** é o "GitHub para imagens Docker" da AWS. Em vez de usar o Docker Hub público, você usa o ECR que fica dentro da sua conta — mais seguro e integrado com o IAM.
 
-O fluxo é:
+O fluxo do ECR é:
 1. Criar o repositório ECR (uma vez)
 2. Buildar a imagem localmente
 3. Autenticar o Docker no ECR
 4. Dar push da imagem
 5. O Fargate puxará essa imagem quando executar a task
 
+Vamos criar o ECR junto com o restante da infra no Terraform (Parte 5). Mas antes, vamos testar o S3.
+
 ### Testando o S3 Antes de Tudo
 
-Antes de partir para a infra completa, vamos testar se o S3 está funcionando corretamente. O scraper salva os dados brutos no S3 quando `AWS_S3_BUCKET` está configurado.
+Antes de partir para a infra completa, vamos testar se o S3 está funcionando corretamente com a aplicação. O scraper salva os dados brutos no S3 quando `AWS_S3_BUCKET` está configurado.
+
+> **Nota:** aqui vamos criar um bucket de teste pela CLI. Quando rodarmos o Terraform na Parte 7, ele vai criar o bucket definitivo — com versionamento, criptografia e bloqueio de acesso público. O bucket de teste pode ser removido depois com `aws s3 rb s3://NOME --force`.
 
 **Passo 1: Crie um bucket de teste pelo CLI**
 
 ```bash
 # Escolha um nome único (buckets S3 são globais na AWS)
-BUCKET_NAME="newsletter-scraper-$(aws sts get-caller-identity \
+BUCKET_NAME="newsletter-scraper-test-$(aws sts get-caller-identity \
   --profile homegenius-admin \
   --query Account \
-  --output text)-us-east-1"
+  --output text)"
 
 echo "Nome do bucket: ${BUCKET_NAME}"
 
@@ -547,7 +563,13 @@ aws s3 ls "s3://${BUCKET_NAME}/raw/google_news/" \
   --recursive
 ```
 
-Se aparecerem arquivos `.jsonl.gz` no S3, o pipeline de output está funcionando. Esse bucket que acabou de criar será o mesmo usado na infra do Fargate.
+Se aparecerem arquivos `.jsonl.gz` no S3, o pipeline de output está funcionando.
+
+**Passo 4: Limpe o bucket de teste (quando não precisar mais)**
+
+```bash
+aws s3 rb "s3://${BUCKET_NAME}" --force --profile homegenius-admin
+```
 
 ---
 
@@ -982,7 +1004,7 @@ resource "aws_iam_role_policy" "scheduler_run_task" {
       {
         Effect   = "Allow"
         Action   = ["ecs:RunTask"]
-        Resource = [aws_ecs_task_definition.scraper.arn]
+        Resource = ["${aws_ecs_task_definition.scraper.arn_without_revision}:*"]
       },
       {
         Effect = "Allow"
@@ -1326,7 +1348,7 @@ aws ecr get-login-password \
 
 # Builda a imagem (no diretório do scraper, não no infra/)
 cd ..
-docker build -t newsletter-scraper:latest .
+docker build --platform linux/amd64 -t newsletter-scraper:latest .
 
 # Tageia para o ECR
 docker tag newsletter-scraper:latest "${ECR_URL}:latest"
@@ -1334,6 +1356,8 @@ docker tag newsletter-scraper:latest "${ECR_URL}:latest"
 # Faz push
 docker push "${ECR_URL}:latest"
 ```
+
+> **`--platform linux/amd64`:** se você estiver num Mac com Apple Silicon (M1/M2/M3/M4), o Docker builda imagens ARM por padrão. O Fargate com `cpu_architecture = "X86_64"` precisa de imagens amd64. Sem essa flag, o container vai falhar com `exec format error` no Fargate.
 
 Confirme que chegou:
 ```bash
@@ -1418,6 +1442,9 @@ Geralmente é um destes problemas:
 - Imagem não existe no ECR → confirme com `aws ecr list-images`
 - Container sem rota para a internet → verifique se a subnet é pública e `assign_public_ip = true`
 
+**`exec format error`:**
+Você buildou a imagem sem `--platform linux/amd64` num Mac Apple Silicon. O Fargate espera amd64, mas a imagem é ARM. Rebuilde com a flag e faça push novamente.
+
 **Script de entrada com erro de sintaxe:**
 ```bash
 # Teste localmente antes
@@ -1499,9 +1526,10 @@ O ciclo de atualização do código é:
 ```bash
 # 1. Faz as mudanças no código
 # 2. Reconstrói a imagem
-docker build -t newsletter-scraper:latest .
+docker build --platform linux/amd64 -t newsletter-scraper:latest .
 
-# 3. Faz push para o ECR
+# 3. Tag + push para o ECR
+docker tag newsletter-scraper:latest "${ECR_URL}:latest"
 docker push "${ECR_URL}:latest"
 
 # 4. O próximo run do Scheduler já vai usar a nova imagem
