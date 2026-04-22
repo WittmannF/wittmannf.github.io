@@ -1388,13 +1388,71 @@ Confirme com `yes`. O Terraform vai criar o cluster ECS, roles IAM, security gro
 
 Esse passo é obrigatório — sem ele, o container não consegue escrever no OpenSearch.
 
-Primeiro, pegue o ARN da task role:
+**Passo 7.1: Pegue o ARN da task role**
+
 ```bash
 terraform output task_role_arn
-# Resultado: arn:aws:iam::123456789012:role/newsletter-scraper-task-role
+# Output: arn:aws:iam::123456789012:role/newsletter-scraper-task-role
 ```
 
-Agora adicione esse ARN na data access policy da sua collection OpenSearch Serverless. Peça ao Pedro o script que ele usa — ele já fez isso para o EC2 e tem o processo documentado. O que muda é só o ARN da role.
+**Passo 7.2: Descubra o nome da data access policy**
+
+```bash
+aws opensearchserverless list-access-policies \
+  --type data \
+  --profile homegenius-admin \
+  --region us-east-1
+```
+
+Anote o `name` da policy que cobre a sua collection.
+
+**Passo 7.3: Leia a policy atual**
+
+```bash
+aws opensearchserverless get-access-policy \
+  --type data \
+  --name <policy-name> \
+  --profile homegenius-admin \
+  --region us-east-1 \
+  --output json
+```
+
+Anote o `policyVersion` (ex: `"MTY..."`) — você vai precisar dele no próximo passo.
+
+No campo `policy`, você vai ver um JSON com um array `Principal`. Adicione o ARN da task role nesse array.
+
+**Passo 7.4: Atualize a policy com a nova role**
+
+```bash
+aws opensearchserverless update-access-policy \
+  --type data \
+  --name <policy-name> \
+  --policy-version <policyVersion-do-passo-anterior> \
+  --profile homegenius-admin \
+  --region us-east-1 \
+  --policy '[
+    {
+      "Rules": [
+        {
+          "ResourceType": "index",
+          "Resource": ["index/*/*"],
+          "Permission": ["aoss:*"]
+        },
+        {
+          "ResourceType": "collection",
+          "Resource": ["collection/ipd-test-collection"],
+          "Permission": ["aoss:*"]
+        }
+      ],
+      "Principal": [
+        "arn:aws:iam::123456789012:role/existing-role",
+        "arn:aws:iam::123456789012:role/newsletter-scraper-task-role"
+      ]
+    }
+  ]'
+```
+
+> Substitua o JSON pelo conteúdo real retornado no passo 7.3, adicionando apenas o ARN da task role no array `Principal`. Não altere as `Rules` existentes.
 
 ### Passo 8: Teste Manual — Disparar a Task
 
