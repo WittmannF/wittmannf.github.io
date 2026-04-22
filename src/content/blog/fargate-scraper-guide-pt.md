@@ -309,13 +309,13 @@ O Compose garante que o `crawl4ai` esteja saudável antes de iniciar o `scraper`
 
 ---
 
-### Problema 6: "No Compose funciona, mas no Fargate a arquitetura é diferente"
+### Problema 6: "E se o Crawl4AI não estiver pronto quando o scraper começar?"
 
-No Docker Compose local, cada serviço tem seu próprio container e rede virtual. No Fargate, rodamos uma **task** — que é um agrupamento de containers que compartilham o **mesmo namespace de rede**.
+No Compose, usamos `depends_on` com `condition: service_healthy`. No Fargate, o ECS tem `dependsOn` com `condition: START` — mas isso só garante que o container **iniciou**, não que ele está pronto para receber requisições.
 
-Isso significa que no Fargate, o `scraper` não acessa o Crawl4AI por nome de serviço (`crawl4ai`), mas sim por `localhost`. Exatamente como se os dois processos estivessem na mesma máquina.
+O Crawl4AI precisa baixar e inicializar um browser Chromium, o que pode levar de 10 a 60 segundos. Se o scraper tentar chamá-lo antes, vai falhar.
 
-O código já está correto — o enricher aponta para `http://localhost:11235`. Mas precisamos garantir que o Crawl4AI **esteja pronto** antes do scraper começar. Para isso, criaremos um script de entrada.
+**Solução: um script de entrada que espera o Crawl4AI ficar disponível antes de começar.**
 
 **Crie `scripts/run_pipeline.sh`:**
 
@@ -1020,6 +1020,8 @@ resource "aws_iam_role_policy" "scheduler_run_task" {
 ```
 
 > **Por que o Scheduler precisa de `iam:PassRole`?** Quando o EventBridge chama o ECS para criar uma task, ele precisa "passar" as duas roles (execution + task) para o ECS. Sem esse `PassRole`, o ECS recusa por não confiar que o Scheduler tem direito a usar essas roles.
+>
+> **Por que `arn_without_revision:*` no `ecs:RunTask`?** Toda vez que você altera a task definition (mudar CPU, adicionar variável de ambiente, etc), o Terraform cria uma **nova revisão** (ex: `newsletter-scraper:2`). Se a policy apontasse para o ARN com revisão fixa (`:1`), o Scheduler perderia permissão após qualquer update. O wildcard `:*` permite qualquer revisão.
 
 ---
 
