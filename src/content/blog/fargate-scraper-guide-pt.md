@@ -28,10 +28,10 @@ A aplicação tem uma CLI clara:
 scraper run --connector google_news
 
 # 2. Enriquece com LLM (topic, description, abstract, tags)
-scraper enrich run data/raw/google_news/2026-04-22/batch_*.jsonl.gz --skip-dedup
+scraper enrich run data/raw/google_news/2026-04-22/batch_123456.jsonl.gz
 
-# 3. Indexa no OpenSearch
-scraper ingest run --data-dir data/enriched/google_news/2026-04-22
+# 3. Indexa no OpenSearch (só o batch específico, não o diretório inteiro)
+scraper ingest run --data-dir data/enriched/google_news/2026-04-22 --file batch_123456.jsonl.gz
 ```
 
 Funciona localmente. O objetivo: fazer esses três comandos rodarem automaticamente na AWS, num container, a cada 30 minutos.
@@ -287,15 +287,9 @@ services:
     env_file: .env
     volumes:
       - ./data:/app/data
-    command: >
-      sh -c "
-        scraper run --connector google_news &&
-        scraper enrich run data/raw/google_news/$$(date +%F)/batch_*.jsonl.gz --skip-dedup &&
-        scraper ingest run --data-dir data/enriched/google_news/$$(date +%F)/
-      "
 ```
 
-Suba tudo com:
+O ENTRYPOINT do Dockerfile (`scripts/run_pipeline.sh`, que criaremos no próximo problema) será o comando executado. Suba tudo com:
 
 ```bash
 docker compose up
@@ -304,8 +298,6 @@ docker compose up
 O Compose garante que o `crawl4ai` esteja saudável antes de iniciar o `scraper`.
 
 > **Por que `network_mode: "service:crawl4ai"`?** O código do enricher está hardcodado para chamar `http://localhost:11235`. No Compose normal, cada serviço tem rede separada — `localhost` do scraper aponta para ele mesmo, não para o crawl4ai. O `network_mode: "service:crawl4ai"` faz o scraper **compartilhar a rede** do crawl4ai, exatamente como vai ser no Fargate. Assim `localhost:11235` funciona.
->
-> Repare também no `$$` antes de `(date ...)` — o `$` simples é interpretado pelo Compose como variável de ambiente. O `$$` escapa para que o shell dentro do container resolva a data corretamente.
 
 ---
 
@@ -321,10 +313,16 @@ O Crawl4AI precisa baixar e inicializar um browser Chromium, o que pode levar de
 
 ```bash
 #!/usr/bin/env bash
+#
+# Google News pipeline para Fargate: scrape → enrich → ingest
+# Baseado em scripts/google_news_pipeline.sh (versão local/cron)
+#
 set -euo pipefail
 
-# Espera o Crawl4AI estar disponível
-echo "[1/4] Aguardando Crawl4AI em localhost:11235..."
+log() { echo "[$(date '+%H:%M:%S')] $*"; }
+
+# ── Espera o Crawl4AI estar disponível ──
+log "=== Aguardando Crawl4AI em localhost:11235 ==="
 
 python3 - <<'PY'
 import socket, time, sys
@@ -344,29 +342,37 @@ print("ERRO: Crawl4AI não ficou disponível em 120s", file=sys.stderr)
 sys.exit(1)
 PY
 
-# Data de hoje
-RUN_DATE="$(date -u +%F)"
-RAW_DIR="data/raw/google_news/${RUN_DATE}"
-ENRICH_DIR="data/enriched/google_news/${RUN_DATE}"
+# ── 1. Scrape ──
+log "=== Scrape ==="
+OUTPUT=$(scraper run --connector google_news 2>&1 | tee /dev/stderr)
 
-echo "[2/4] Coletando artigos..."
-scraper run --connector google_news
+# Extrai o caminho do batch file do output do scraper
+BATCH_FILE=$(echo "$OUTPUT" | grep -o 'data/raw/google_news/[^ ]*\.jsonl[^ ]*' | head -1)
 
-# Encontra o batch mais recente
-RAW_FILE="$(find "${RAW_DIR}" -name 'batch_*.jsonl*' | sort | tail -n 1)"
-if [[ -z "${RAW_FILE:-}" ]]; then
-  echo "ERRO: nenhum arquivo raw encontrado em ${RAW_DIR}" >&2
-  exit 1
+if [ -z "${BATCH_FILE:-}" ]; then
+    log "Nenhum batch produzido. Saindo."
+    exit 0
+fi
+log "Batch: $BATCH_FILE"
+
+# ── 2. Enrich ──
+log "=== Enrich ==="
+scraper enrich run "$BATCH_FILE"
+
+# ── 3. Ingest (só o batch que acabou de enriquecer, não o diretório inteiro) ──
+BATCH_NAME=$(basename "$BATCH_FILE")
+ENRICHED_DIR="data/enriched/google_news/$(date -u +%Y-%m-%d)"
+ENRICHED_FILE="$ENRICHED_DIR/$BATCH_NAME"
+
+if [ -f "$ENRICHED_FILE" ]; then
+    log "=== Ingest ==="
+    log "Ingerindo: $ENRICHED_FILE"
+    scraper ingest run --data-dir "$ENRICHED_DIR" --file "$BATCH_NAME"
+else
+    log "Arquivo enriquecido não encontrado em $ENRICHED_FILE, pulando ingest."
 fi
 
-echo "[3/4] Enriquecendo: ${RAW_FILE}"
-mkdir -p "${ENRICH_DIR}"
-scraper enrich run "${RAW_FILE}" --skip-dedup --output-dir "${ENRICH_DIR}"
-
-echo "[4/4] Indexando no OpenSearch..."
-scraper ingest run --data-dir "${ENRICH_DIR}"
-
-echo "Pipeline concluído com sucesso."
+log "=== Pipeline concluído ==="
 ```
 
 Torne o script executável:
