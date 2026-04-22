@@ -174,7 +174,7 @@ docker build -t scraper:hello .
 docker images scraper
 ```
 
-Você vai notar que o build ficou mais rápido e a imagem menor.
+Você vai notar que o build ficou mais rápido — o contexto enviado ao Docker (aquela linha `transferring context:` no log) cai drasticamente. O tamanho da imagem final não muda porque o Dockerfile já faz `COPY` seletivo, mas o `.dockerignore` protege contra acidentes futuros (como um `COPY . .` que puxaria `.env` ou `data/` para dentro da imagem).
 
 ---
 
@@ -182,7 +182,7 @@ Você vai notar que o build ficou mais rápido e a imagem menor.
 
 Docker usa um sistema de **camadas em cache**. Cada linha do Dockerfile é uma camada. Se uma camada muda, todas as seguintes são reconstruídas.
 
-O problema: se você copiar o código antes de instalar as dependências, qualquer mudança no código invalida o cache das dependências — e o `uv pip install` roda de novo, mesmo que o `pyproject.toml` não tenha mudado.
+O problema: se você copiar o código antes de instalar as dependências, qualquer mudança no código invalida o cache das dependências — e o `uv sync` roda de novo, mesmo que o `pyproject.toml` não tenha mudado.
 
 **Solução: copiar dependências primeiro, código depois.**
 
@@ -531,7 +531,7 @@ BUCKET_NAME="newsletter-scraper-test-$(aws sts get-caller-identity \
   --query Account \
   --output text)"
 
-echo "Nome do bucket: ${BUCKET_NAME}"
+echo "Bucket name: ${BUCKET_NAME}"
 
 aws s3 mb "s3://${BUCKET_NAME}" \
   --region us-east-1 \
@@ -616,7 +616,7 @@ São duas roles diferentes com propósitos diferentes. Confundir as duas é um d
 
 O OpenSearch Serverless tem uma camada de autorização além do IAM: a **Data Access Policy**. Mesmo que a Task Role tenha `aoss:APIAccessAll`, você também precisa adicionar o ARN da role na data access policy da collection.
 
-Seu colega Pedro já fez isso para o EC2. Para o Fargate, você vai precisar repetir o processo com a nova task role — mas isso vem depois, quando o Terraform criar a role e você tiver o ARN.
+No Passo 7 do deploy, vamos fazer esse processo completo com os comandos da AWS CLI.
 
 ---
 
@@ -1427,7 +1427,7 @@ No campo `policy`, você vai ver um JSON com um array `Principal`. Adicione o AR
 aws opensearchserverless update-access-policy \
   --type data \
   --name <policy-name> \
-  --policy-version <policyVersion-do-passo-anterior> \
+  --policy-version <policyVersion-from-previous-step> \
   --profile homegenius-admin \
   --region us-east-1 \
   --policy '[
@@ -1513,7 +1513,7 @@ Você buildou a imagem sem `--platform linux/amd64` num Mac Apple Silicon. O Far
 
 **Script de entrada com erro de sintaxe:**
 ```bash
-# Teste localmente antes
+# Test locally first
 docker run --rm scraper:latest scripts/run_pipeline.sh
 ```
 
@@ -1583,7 +1583,7 @@ E atualizar o Dockerfile + fazer novo push.
 
 **Subnet privada + NAT Gateway:** mais seguro (o container não tem IP público), mas custa ~$32/mês pelo NAT. Avalie quando o projeto sair do PoC.
 
-**Least privilege no S3:** em vez de `s3:*` no bucket inteiro, restrinja por prefixo (`raw/`, `enriched/`) conforme necessário.
+**Least privilege no S3:** restrinja as ações por prefixo (`raw/*`, `enriched/*`) em vez de dar acesso ao bucket inteiro.
 
 ### Atualizar a Imagem
 
