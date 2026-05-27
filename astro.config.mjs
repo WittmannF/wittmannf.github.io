@@ -1,13 +1,14 @@
 import { defineConfig } from 'astro/config';
 import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
+import react from '@astrojs/react';
 
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   site: 'https://fernandowittmann.com',
 
-  integrations: [mdx(), sitemap()],
+  integrations: [mdx(), sitemap(), react()],
 
   markdown: {
     shikiConfig: {
@@ -17,6 +18,9 @@ export default defineConfig({
   },
 
   vite: {
-    plugins: [tailwindcss()]
+    plugins: [tailwindcss()],
+    ssr: {
+      noExternal: ['framer-motion']
+    }
   }
 });
