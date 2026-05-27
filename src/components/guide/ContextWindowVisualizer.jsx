@@ -17,7 +17,7 @@ const states = [
   },
   {
     label: 'Just Right',
-    emoji: '✅',
+    emoji: '✓',
     color: 'var(--green)',
     bg: 'rgba(16,185,129,0.08)',
     border: 'rgba(16,185,129,0.3)',
@@ -84,9 +84,12 @@ export default function ContextWindowVisualizer() {
                   borderRadius: 8, padding: '6px 16px', cursor: 'pointer',
                   color: pos === i ? s.color : 'var(--text-muted)',
                   fontSize: 13, fontWeight: 600, transition: 'all 0.2s',
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  lineHeight: 1,
                 }}
               >
-                {s.emoji} {s.label}
+                <span style={{ fontSize: 14, lineHeight: 1 }}>{s.emoji}</span>
+                <span>{s.label}</span>
               </button>
             ))}
           </div>
@@ -133,7 +136,7 @@ export default function ContextWindowVisualizer() {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
-              <div style={{ fontSize: 36 }}>{state.emoji}</div>
+              <div style={{ fontSize: 30, lineHeight: 1, flexShrink: 0, marginTop: 2 }}>{state.emoji}</div>
               <div>
                 <p style={{ fontSize: 16, color: 'var(--text)', fontWeight: 600, marginBottom: 6 }}>{state.label}</p>
                 <p style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: state.warning ? 10 : 0 }}>

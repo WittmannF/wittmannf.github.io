@@ -32,37 +32,40 @@ export default function AgentLoopSection() {
           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 20 }}>
             The agentic loop
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 0, alignItems: 'center' }}>
-            {loopSteps.map((step, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center' }}>
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.12 }}
-                  style={{
-                    background: step.danger ? 'rgba(239,68,68,0.08)' : 'var(--bg)',
-                    border: `2px solid ${step.danger ? 'rgba(239,68,68,0.4)' : 'var(--border)'}`,
-                    borderRadius: 12, padding: '14px 18px', textAlign: 'center',
-                    minWidth: 100, position: 'relative',
-                  }}
-                >
-                  {step.danger && (
-                    <div style={{
-                      position: 'absolute', top: -10, right: -10,
-                      background: 'var(--red)', color: '#fff', fontSize: 9,
-                      fontWeight: 700, padding: '2px 6px', borderRadius: 4,
-                    }}>CRITICAL</div>
+          <div style={{ overflowX: 'auto', paddingBottom: 8 }}>
+            <div style={{ display: 'flex', flexWrap: 'nowrap', gap: 0, alignItems: 'center', minWidth: 'max-content' }}>
+              {loopSteps.map((step, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: i * 0.12 }}
+                    style={{
+                      background: step.danger ? 'rgba(239,68,68,0.08)' : 'var(--bg)',
+                      border: `2px solid ${step.danger ? 'rgba(239,68,68,0.4)' : 'var(--border)'}`,
+                      borderRadius: 12, padding: '14px 18px', textAlign: 'center',
+                      width: 110, position: 'relative', flexShrink: 0,
+                    }}
+                  >
+                    {step.danger && (
+                      <div style={{
+                        position: 'absolute', top: -10, right: -10,
+                        background: 'var(--red)', color: '#fff', fontSize: 9,
+                        fontWeight: 700, padding: '2px 6px', borderRadius: 4,
+                        whiteSpace: 'nowrap',
+                      }}>CRITICAL</div>
+                    )}
+                    <div style={{ fontSize: 22, marginBottom: 6 }}>{step.icon}</div>
+                    <div style={{ fontSize: 11, color: step.color, fontWeight: 600 }}>{step.label}</div>
+                  </motion.div>
+                  {i < loopSteps.length - 1 && (
+                    <div style={{ fontSize: 18, color: 'var(--text-muted)', margin: '0 6px', flexShrink: 0 }}>→</div>
                   )}
-                  <div style={{ fontSize: 22, marginBottom: 6 }}>{step.icon}</div>
-                  <div style={{ fontSize: 11, color: step.color, fontWeight: 600 }}>{step.label}</div>
-                </motion.div>
-                {i < loopSteps.length - 1 && (
-                  <div style={{ fontSize: 18, color: 'var(--text-muted)', margin: '0 4px' }}>→</div>
-                )}
-              </div>
-            ))}
-            <div style={{ fontSize: 18, color: 'var(--accent)', margin: '0 4px' }}>↺</div>
+                </div>
+              ))}
+              <div style={{ fontSize: 22, color: 'var(--accent)', margin: '0 6px', flexShrink: 0, fontWeight: 700 }}>↺</div>
+            </div>
           </div>
           <div style={{
             marginTop: 16, padding: '12px 16px',

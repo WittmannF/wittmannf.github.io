@@ -1,73 +1,102 @@
 import { motion } from 'framer-motion'
 import { ArrowDown, BookOpen, CheckSquare } from 'lucide-react'
 
-function DeskVisual() {
-  const papers = [
-    { label: 'System Prompt', x: 20, y: 20, w: 160, h: 80, relevant: true, rotate: -2 },
-    { label: 'Retrieved Doc A', x: 40, y: 115, w: 140, h: 70, relevant: true, rotate: 1 },
-    { label: 'User Query', x: 60, y: 200, w: 130, h: 60, relevant: true, rotate: -1 },
-    { label: 'Junk email', x: 340, y: 30, w: 110, h: 55, relevant: false, rotate: 8, opacity: 0.5 },
-    { label: 'Old news', x: 380, y: 110, w: 90, h: 45, relevant: false, rotate: -12, opacity: 0.4 },
-    { label: 'Random doc', x: 320, y: 170, w: 120, h: 50, relevant: false, rotate: 15, opacity: 0.45 },
-    { label: 'Irrelevant', x: 370, y: 230, w: 100, h: 40, relevant: false, rotate: -5, opacity: 0.4 },
-  ]
+const relevantPapers = [
+  { label: 'System Prompt', rotate: -1.5, accent: true },
+  { label: 'Retrieved Doc A', rotate: 1, accent: true },
+  { label: 'User Query', rotate: -0.5, accent: true },
+]
 
+const filteredPapers = [
+  { label: 'Junk email', rotate: 6 },
+  { label: 'Old news', rotate: -8 },
+  { label: 'Random doc', rotate: 12 },
+  { label: 'Irrelevant', rotate: -4 },
+]
+
+function DeskVisual() {
   return (
     <div style={{
-      position: 'relative', width: '100%', maxWidth: 520, height: 300,
-      background: 'var(--surface2)', borderRadius: 16, margin: '0 auto',
-      border: '1px solid var(--border)', overflow: 'visible',
+      width: '100%', maxWidth: 620, margin: '0 auto',
+      background: 'var(--surface2)', borderRadius: 16,
+      border: '1px solid var(--border)', padding: '20px 24px 16px',
+      overflow: 'hidden',
     }}>
-      {/* Desk label */}
+      {/* Header */}
       <div style={{
-        position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)',
-        fontSize: 11, color: 'var(--text-muted)', letterSpacing: 1, textTransform: 'uppercase',
-        fontWeight: 600,
-      }}>LLM Context Window (The Desk)</div>
+        textAlign: 'center', fontSize: 11, color: 'var(--text-muted)',
+        letterSpacing: 1, textTransform: 'uppercase', fontWeight: 600, marginBottom: 20,
+      }}>
+        LLM Context Window (The Desk)
+      </div>
 
-      {/* Divider */}
-      <div style={{
-        position: 'absolute', left: '57%', top: 40, bottom: 16,
-        width: 2, background: 'var(--border)',
-        borderStyle: 'dashed',
-      }} />
-      <div style={{
-        position: 'absolute', left: '62%', top: 50,
-        fontSize: 10, color: 'var(--text-muted)',
-      }}>pushed off</div>
+      {/* Two columns */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1px 1fr', gap: 0, minHeight: 200 }}>
 
-      {/* Papers */}
-      {papers.map((p, i) => (
-        <motion.div
-          key={i}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: p.opacity ?? 1, y: 0 }}
-          transition={{ delay: i * 0.1, duration: 0.4 }}
-          style={{
-            position: 'absolute', left: p.x, top: p.y, width: p.w, height: p.h,
-            background: p.relevant ? 'var(--surface)' : 'var(--surface2)',
-            border: `1px solid ${p.relevant ? 'var(--accent)' : 'var(--border)'}`,
-            borderRadius: 6,
-            transform: `rotate(${p.rotate}deg)`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 11, fontWeight: 500,
-            color: p.relevant ? 'var(--text)' : 'var(--text-muted)',
-            boxShadow: p.relevant ? '0 2px 8px rgba(99,102,241,0.15)' : 'none',
-          }}
-        >
-          {p.label}
-        </motion.div>
-      ))}
+        {/* Left — relevant */}
+        <div style={{ paddingRight: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {relevantPapers.map((p, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, x: -12 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.12, duration: 0.4 }}
+              style={{
+                background: 'var(--surface)',
+                border: '1px solid var(--accent)',
+                borderRadius: 8, padding: '12px 16px',
+                fontSize: 13, fontWeight: 600, color: 'var(--text)',
+                transform: `rotate(${p.rotate}deg)`,
+                boxShadow: '0 2px 12px rgba(99,102,241,0.12)',
+              }}
+            >
+              {p.label}
+            </motion.div>
+          ))}
+        </div>
 
-      {/* Labels */}
-      <div style={{
-        position: 'absolute', bottom: 8, left: 20, fontSize: 10,
-        color: 'var(--green)', fontWeight: 600,
-      }}>✓ High-signal context</div>
-      <div style={{
-        position: 'absolute', bottom: 8, right: 20, fontSize: 10,
-        color: 'var(--red)', fontWeight: 600,
-      }}>✗ Filtered out</div>
+        {/* Divider */}
+        <div style={{
+          background: 'var(--border)', margin: '0 0',
+          position: 'relative',
+        }}>
+          <div style={{
+            position: 'absolute', top: '50%', left: '50%',
+            transform: 'translate(-50%, -50%)',
+            background: 'var(--surface2)', padding: '2px 0',
+            fontSize: 9, color: 'var(--text-muted)', writingMode: 'vertical-rl',
+            textTransform: 'uppercase', letterSpacing: 1, fontWeight: 600,
+            whiteSpace: 'nowrap',
+          }}>pushed off</div>
+        </div>
+
+        {/* Right — filtered */}
+        <div style={{ paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {filteredPapers.map((p, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, x: 12 }}
+              animate={{ opacity: 0.45, x: 0 }}
+              transition={{ delay: 0.4 + i * 0.1, duration: 0.4 }}
+              style={{
+                background: 'var(--surface2)',
+                border: '1px solid var(--border)',
+                borderRadius: 6, padding: '8px 12px',
+                fontSize: 12, color: 'var(--text-muted)',
+                transform: `rotate(${p.rotate}deg)`,
+              }}
+            >
+              {p.label}
+            </motion.div>
+          ))}
+        </div>
+      </div>
+
+      {/* Footer labels */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+        <div style={{ fontSize: 11, color: 'var(--green)', fontWeight: 700 }}>✓ High-signal context</div>
+        <div style={{ fontSize: 11, color: 'var(--red)', fontWeight: 700 }}>✗ Filtered out</div>
+      </div>
     </div>
   )
 }
@@ -93,8 +122,7 @@ export default function HeroSection() {
 
         <h1 style={{
           fontSize: 'clamp(28px, 5vw, 56px)', fontWeight: 800, lineHeight: 1.1,
-          letterSpacing: '-1.5px', marginBottom: 20,
-          color: 'var(--text)',
+          letterSpacing: '-1.5px', marginBottom: 20, color: 'var(--text)',
         }}>
           Context Engineering:
           <br />
@@ -119,7 +147,7 @@ export default function HeroSection() {
             display: 'inline-flex', alignItems: 'center', gap: 8,
             background: 'var(--accent)', color: '#fff',
             padding: '12px 24px', borderRadius: 10, fontWeight: 600, fontSize: 15,
-            textDecoration: 'none', transition: 'opacity 0.15s',
+            textDecoration: 'none',
           }}>
             <BookOpen size={16} /> Start the guide
           </a>
@@ -153,10 +181,7 @@ export default function HeroSection() {
       </motion.div>
 
       <div style={{ textAlign: 'center', marginTop: 48 }}>
-        <motion.div
-          animate={{ y: [0, 8, 0] }}
-          transition={{ repeat: Infinity, duration: 2 }}
-        >
+        <motion.div animate={{ y: [0, 8, 0] }} transition={{ repeat: Infinity, duration: 2 }}>
           <ArrowDown size={20} color="var(--text-muted)" />
         </motion.div>
       </div>
