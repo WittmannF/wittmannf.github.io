@@ -43,11 +43,13 @@ export default function MultiAgentSection() {
             </motion.div>
           </div>
 
-          {/* Lines */}
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 64, marginBottom: 12, paddingLeft: 0 }}>
-            {['↙', '↓', '↘'].map((arrow, i) => (
-              <span key={i} style={{ color: 'var(--text-muted)', fontSize: 20 }}>{arrow}</span>
-            ))}
+          {/* SVG connector lines */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 4 }}>
+            <svg width="340" height="36" viewBox="0 0 340 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <line x1="170" y1="0" x2="50" y2="36" stroke="var(--border)" strokeWidth="1.5" />
+              <line x1="170" y1="0" x2="170" y2="36" stroke="var(--border)" strokeWidth="1.5" />
+              <line x1="170" y1="0" x2="290" y2="36" stroke="var(--border)" strokeWidth="1.5" />
+            </svg>
           </div>
 
           {/* Sub-agents */}
@@ -55,7 +57,7 @@ export default function MultiAgentSection() {
             {[
               { icon: '🔍', label: 'Research Agent', desc: 'Clean context\nfor retrieval', color: 'var(--green)', bg: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.3)' },
               { icon: '💻', label: 'Code Agent', desc: 'Clean context\nfor implementation', color: 'var(--blue)', bg: 'rgba(59,130,246,0.08)', border: 'rgba(59,130,246,0.3)' },
-              { icon: '✅', label: 'Review Agent', desc: 'Clean context\nfor validation', color: 'var(--orange)', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.3)' },
+              { icon: '✔', label: 'Review Agent', desc: 'Clean context\nfor validation', color: 'var(--orange)', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.3)' },
             ].map((agent, i) => (
               <motion.div
                 key={i}
