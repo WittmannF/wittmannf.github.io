@@ -1,48 +1,48 @@
 ---
-title: 'Terraform na AWS: Guia Prático Do Zero à Produção'
-description: 'Aprenda Terraform construindo: um scraper de notícias que começa com recursos criados manualmente e termina com infraestrutura versionada, modular e automatizada. Cada problema leva ao próximo conceito.'
+title: 'Terraform on AWS: Practical Guide From Zero to Production'
+description: 'Learn Terraform by building: a news scraper that starts with manually created resources and ends with versioned, modular, automated infrastructure. Each problem leads to the next concept.'
 pubDate: 2026-04-17
-tags: ['Terraform', 'AWS', 'IaC', 'DevOps', 'Cloud', 'Infraestrutura']
-lang: 'pt'
+tags: ['Terraform', 'AWS', 'IaC', 'DevOps', 'Cloud', 'Infrastructure']
+lang: 'en'
 ---
 
-Você cria uma Lambda pelo console da AWS. Funciona. Adiciona um bucket S3. Um EventBridge Schedule. Uma role IAM. Três semanas depois, um colega pergunta: *"O que exatamente está rodando na nossa conta?"* — e ninguém sabe responder com certeza.
+You create a Lambda through the AWS console. It works. You add an S3 bucket. An EventBridge Schedule. An IAM role. Three weeks later, a colleague asks: *"What exactly is running in our account?"* — and nobody can answer with certainty.
 
-Pior: alguém deleta um recurso pelo console achando que não era usado. A aplicação quebra. Ninguém sabe recriar exatamente o que existia.
+Worse: someone deletes a resource through the console thinking it wasn't in use. The application breaks. Nobody knows how to recreate exactly what was there.
 
-Este guia vai te levar dessa situação — infraestrutura criada manualmente pelo console — até tudo versionado em código, modular, com CI/CD e pronto para produção. Cada seção resolve um problema real.
+This guide will take you from that situation — infrastructure created manually through the console — to everything versioned in code, modular, with CI/CD, and ready for production. Each section solves a real problem.
 
-Vamos usar como exemplo um **scraper de notícias agendado na AWS** — Lambda + S3 + EventBridge Scheduler. Se você leu o [guia de deploy na AWS](/pt/blog/aws-containers-guide-pt), vamos agora colocar essa mesma infraestrutura em código.
-
----
-
-## O Ponto de Partida: Infraestrutura Criada na Mão
-
-Você seguiu um tutorial e criou pelo console (ou CLI) estes recursos:
-
-- Uma **Lambda function** que roda seu scraper
-- Um **bucket S3** onde os artigos são salvos
-- Um **EventBridge Schedule** que dispara a Lambda a cada 4 horas
-- **IAM roles** para a Lambda e o Scheduler
-
-Funciona. Mas os problemas começam a aparecer...
+We'll use a **scheduled news scraper on AWS** as our example — Lambda + S3 + EventBridge Scheduler. If you read the [AWS deployment guide](/blog/aws-containers-guide), we'll now put that same infrastructure into code.
 
 ---
 
-## Problema 1: "Quem Criou Isso? O Que É Esse Recurso?"
+## The Starting Point: Hand-Created Infrastructure
 
-Você abre o console da AWS e encontra:
-- 3 buckets S3 com nomes misteriosos
-- 5 IAM roles que ninguém sabe se estão em uso
-- Uma Lambda que *talvez* alguém tenha criado para testar algo
+You followed a tutorial and created these resources through the console (or CLI):
 
-Ninguém consegue reconstruir o ambiente. Não existe documentação. O console é a única fonte de verdade — e é uma fonte terrível.
+- A **Lambda function** that runs your scraper
+- An **S3 bucket** where articles are saved
+- An **EventBridge Schedule** that triggers the Lambda every 4 hours
+- **IAM roles** for the Lambda and the Scheduler
 
-### Solução: Terraform — Infraestrutura como Código
+It works. But the problems start to show up...
 
-Terraform permite descrever sua infraestrutura em arquivos declarativos. Você escreve *o que quer que exista*, e o Terraform descobre como criar.
+---
 
-Instale o Terraform:
+## Problem 1: "Who Created This? What Is This Resource?"
+
+You open the AWS console and find:
+- 3 S3 buckets with mysterious names
+- 5 IAM roles that nobody knows are in use
+- A Lambda that *maybe* someone created to test something
+
+Nobody can rebuild the environment. There's no documentation. The console is the only source of truth — and it's a terrible one.
+
+### Solution: Terraform — Infrastructure as Code
+
+Terraform lets you describe your infrastructure in declarative files. You write *what you want to exist*, and Terraform figures out how to create it.
+
+Install Terraform:
 
 ```bash
 # Mac
@@ -53,13 +53,13 @@ brew install hashicorp/tap/terraform
 terraform version
 ```
 
-Crie um diretório para o projeto:
+Create a directory for the project:
 
 ```bash
 mkdir infra && cd infra
 ```
 
-Crie o arquivo `main.tf` — vamos começar com apenas o bucket S3:
+Create the `main.tf` file — we'll start with just the S3 bucket:
 
 ```hcl
 provider "aws" {
@@ -71,7 +71,7 @@ resource "aws_s3_bucket" "articles" {
 }
 ```
 
-Agora rode:
+Now run:
 
 ```bash
 terraform init     # Baixa o provider da AWS
@@ -79,11 +79,11 @@ terraform plan     # Mostra o que será criado (sem criar nada)
 terraform apply    # Cria de fato (pede confirmação)
 ```
 
-O `plan` é sua rede de segurança — ele mostra **exatamente** o que vai acontecer antes de acontecer. Sempre leia o plan.
+The `plan` is your safety net — it shows **exactly** what will happen before it happens. Always read the plan.
 
-Pronto: seu bucket está criado, e o código que o descreve está num arquivo que você pode versionar no Git. Qualquer pessoa que ler `main.tf` sabe exatamente o que existe na AWS.
+Done: your bucket is created, and the code that describes it is in a file you can version in Git. Anyone who reads `main.tf` knows exactly what exists in AWS.
 
-### Os Três Comandos que Você Vai Usar o Tempo Todo
+### The Three Commands You'll Use All the Time
 
 ```bash
 terraform init      # Inicializa o projeto (baixa providers, módulos)
@@ -94,13 +94,13 @@ terraform destroy   # Remove tudo (cuidado!)
 
 ---
 
-## Problema 2: Preciso Criar o Resto da Infraestrutura
+## Problem 2: I Need to Create the Rest of the Infrastructure
 
-Um bucket não basta. Você precisa da Lambda, das roles IAM, e do agendamento. Vamos adicionar tudo.
+One bucket isn't enough. You need the Lambda, IAM roles, and scheduling. Let's add everything.
 
-### Solução: Definir Todos os Recursos
+### Solution: Define All Resources
 
-Adicione ao `main.tf`:
+Add to `main.tf`:
 
 ```hcl
 provider "aws" {
@@ -218,21 +218,21 @@ terraform plan    # Mostra: 8 recursos a criar
 terraform apply   # Cria tudo
 ```
 
-Repare como o Terraform descobre a **ordem** automaticamente: ele sabe que a Lambda depende da IAM role (porque referencia `aws_iam_role.lambda.arn`), então cria a role primeiro. Você não precisa especificar a ordem — ele entende pelo grafo de dependências.
+Notice how Terraform figures out the **order** automatically: it knows the Lambda depends on the IAM role (because it references `aws_iam_role.lambda.arn`), so it creates the role first. You don't need to specify the order — it understands from the dependency graph.
 
-> **O `source_code_hash`** faz o Terraform detectar quando o código da Lambda mudou. Sem ele, atualizar o `lambda.zip` não dispara um redeploy.
+> **`source_code_hash`** makes Terraform detect when the Lambda code has changed. Without it, updating `lambda.zip` won't trigger a redeploy.
 
 ---
 
-## Problema 3: Mudei um Recurso e Tudo se Perdeu
+## Problem 3: I Changed a Resource and Everything Got Out of Sync
 
-Você editou a Lambda pelo console — mudou o timeout para 600s para testar. Funciona. Mas na próxima vez que rodar `terraform apply`, o Terraform volta o timeout para 900s (o valor no código).
+You edited the Lambda through the console — changed the timeout to 600s to test. It works. But the next time you run `terraform apply`, Terraform reverts the timeout to 900s (the value in code).
 
-Ou pior: você deletou manualmente um recurso pelo console. O Terraform acha que ele ainda existe, tenta modificá-lo, e dá erro.
+Or worse: you manually deleted a resource through the console. Terraform thinks it still exists, tries to modify it, and errors out.
 
-### Solução: Entender o State
+### Solution: Understand the State
 
-Terraform mantém um arquivo de **estado** (`terraform.tfstate`) que mapeia o que está no código para o que existe na AWS. É assim que ele sabe a diferença entre "criar" e "atualizar".
+Terraform keeps a **state** file (`terraform.tfstate`) that maps what's in code to what exists in AWS. That's how it knows the difference between "create" and "update".
 
 ```bash
 # Ver o que o Terraform gerencia
@@ -242,7 +242,7 @@ terraform state list
 terraform state show aws_lambda_function.scraper
 ```
 
-O estado é a **fonte de verdade** do Terraform. Se você muda algo pelo console, o Terraform não sabe — até o próximo `plan`, quando detecta o drift:
+The state is Terraform's **source of truth**. If you change something through the console, Terraform doesn't know — until the next `plan`, when it detects drift:
 
 ```bash
 terraform plan
@@ -250,24 +250,24 @@ terraform plan
 #     ~ timeout: 600 -> 900   (vai reverter para o código)
 ```
 
-**Regras de ouro**:
-1. Nunca edite recursos gerenciados pelo Terraform manualmente no console
-2. Se editou, rode `terraform plan` para ver o drift e decida: atualizar o código ou deixar o Terraform corrigir
-3. Se criou algo pelo console e quer que o Terraform gerencie, importe (veremos no Problema 7)
+**Golden rules**:
+1. Never edit Terraform-managed resources manually in the console
+2. If you did edit, run `terraform plan` to see the drift and decide: update the code or let Terraform fix it
+3. If you created something through the console and want Terraform to manage it, import it (we'll cover this in Problem 7)
 
 ---
 
-## Problema 4: Dois Desenvolvedores Rodaram Apply ao Mesmo Tempo
+## Problem 4: Two Developers Ran Apply at the Same Time
 
-O arquivo `terraform.tfstate` está na sua máquina. Seu colega tem uma cópia diferente. Vocês rodam `apply` ao mesmo tempo — e a infraestrutura fica num estado inconsistente.
+The `terraform.tfstate` file is on your machine. Your colleague has a different copy. You both run `apply` at the same time — and the infrastructure ends up in an inconsistent state.
 
-Ou pior: alguém perde o laptop com o único `tfstate` existente. Sem o state, o Terraform perde a relação com os recursos reais.
+Or worse: someone loses the laptop with the only existing `tfstate`. Without the state, Terraform loses the connection to the real resources.
 
-### Solução: Estado Remoto com S3
+### Solution: Remote State with S3
 
-Mova o estado para a cloud — acessível por todos, com lock para evitar conflitos.
+Move the state to the cloud — accessible to everyone, with locking to prevent conflicts.
 
-Primeiro, crie o bucket (um bootstrap que roda uma vez):
+First, create the bucket (a one-time bootstrap):
 
 ```hcl
 # bootstrap/main.tf
@@ -313,7 +313,7 @@ cd bootstrap
 terraform init && terraform apply
 ```
 
-Agora configure seu projeto para usar o backend remoto. Crie `backend.tf`:
+Now configure your project to use the remote backend. Create `backend.tf`:
 
 ```hcl
 terraform {
@@ -331,19 +331,19 @@ terraform {
 terraform init -migrate-state    # Migra o state local para o S3
 ```
 
-O `use_lockfile = true` cria um arquivo de lock no S3 — se alguém está rodando `apply`, ninguém mais consegue rodar ao mesmo tempo. Acabam os conflitos.
+`use_lockfile = true` creates a lock file in S3 — if someone is running `apply`, nobody else can run at the same time. Conflicts are gone.
 
-> **Versioning no S3** é fundamental: se o state corromper, você pode recuperar uma versão anterior do bucket versionado.
+> **Versioning on S3** is essential: if the state gets corrupted, you can recover a previous version from the versioned bucket.
 
 ---
 
-## Problema 5: Tudo Está num Arquivo Gigante
+## Problem 5: Everything Is in One Giant File
 
-O `main.tf` cresceu para 300 linhas. Lambda, S3, IAM, EventBridge — tudo junto. Difícil de ler, difícil de manter.
+`main.tf` grew to 300 lines. Lambda, S3, IAM, EventBridge — all together. Hard to read, hard to maintain.
 
-### Solução: Separar em Arquivos
+### Solution: Split Into Files
 
-O Terraform lê **todos** os arquivos `.tf` do diretório como um único bloco. A separação é puramente organizacional — mas faz diferença enorme na legibilidade:
+Terraform reads **all** `.tf` files in the directory as a single block. The split is purely organizational — but it makes a huge difference in readability:
 
 ```
 infra/
@@ -357,7 +357,7 @@ infra/
 └── backend.tf       # Configuração do estado remoto
 ```
 
-Mova as variáveis para `variables.tf`:
+Move variables to `variables.tf`:
 
 ```hcl
 # variables.tf
@@ -380,7 +380,7 @@ variable "schedule_expression" {
 }
 ```
 
-Fixe versões em `versions.tf`:
+Pin versions in `versions.tf`:
 
 ```hcl
 # versions.tf
@@ -396,7 +396,7 @@ terraform {
 }
 ```
 
-E use `locals` para valores derivados — evita repetição:
+And use `locals` for derived values — avoids repetition:
 
 ```hcl
 # main.tf
@@ -416,17 +416,17 @@ provider "aws" {
 }
 ```
 
-O `default_tags` no provider aplica tags automaticamente a **todos** os recursos — sem precisar repetir `tags = ...` em cada bloco. Útil para rastrear custo e ownership.
+`default_tags` on the provider applies tags automatically to **all** resources — without repeating `tags = ...` in every block. Useful for tracking cost and ownership.
 
 ---
 
-## Problema 6: Preciso de Staging e Produção
+## Problem 6: I Need Staging and Production
 
-O scraper está em dev. Agora você precisa de uma cópia em staging e outra em prod — com configurações diferentes (mais memória, menos frequência, bucket separado).
+The scraper is in dev. Now you need a copy in staging and another in prod — with different configurations (more memory, less frequency, separate bucket).
 
-### Solução: Ambientes com `tfvars`
+### Solution: Environments with `tfvars`
 
-Crie um arquivo de variáveis por ambiente:
+Create a variables file per environment:
 
 ```
 infra/
@@ -458,7 +458,7 @@ lambda_timeout      = 900
 schedule_expression = "rate(2 hours)"
 ```
 
-Atualize os recursos para usar as variáveis:
+Update resources to use the variables:
 
 ```hcl
 # variables.tf
@@ -503,7 +503,7 @@ resource "aws_lambda_function" "scraper" {
 }
 ```
 
-Aplique por ambiente:
+Apply per environment:
 
 ```bash
 # Dev
@@ -515,20 +515,20 @@ terraform plan -var-file=envs/prod.tfvars
 terraform apply -var-file=envs/prod.tfvars
 ```
 
-> **Importante**: cada ambiente precisa de um **state separado**. Mude a `key` no `backend.tf` ou use a flag `-backend-config`:
+> **Important**: each environment needs a **separate state**. Change the `key` in `backend.tf` or use the `-backend-config` flag:
 > ```bash
 > terraform init -backend-config="key=scraper/prod/terraform.tfstate"
 > ```
 
 ---
 
-## Problema 7: Já Tenho Recursos Criados na Mão
+## Problem 7: I Already Have Hand-Created Resources
 
-Metade da infraestrutura foi criada pelo console. Você quer começar a usar Terraform sem destruir e recriar tudo.
+Half the infrastructure was created through the console. You want to start using Terraform without destroying and recreating everything.
 
-### Solução: Import Blocks
+### Solution: Import Blocks
 
-Desde o Terraform 1.5, importar é declarativo:
+Since Terraform 1.5, importing is declarative:
 
 ```hcl
 # Importar um bucket S3 existente
@@ -554,31 +554,31 @@ import {
 }
 ```
 
-O melhor: o Terraform pode **gerar a configuração** automaticamente:
+Best of all: Terraform can **generate the configuration** automatically:
 
 ```bash
 # Escreva só os import blocks, sem os resource blocks
 terraform plan -generate-config-out=generated.tf
 ```
 
-O Terraform cria `generated.tf` com todos os atributos. Revise, limpe, mova para os arquivos corretos, e:
+Terraform creates `generated.tf` with all attributes. Review, clean up, move to the correct files, and:
 
 ```bash
 terraform apply     # Importa sem modificar nada
 terraform plan      # Deve mostrar "No changes" — tudo sincronizado
 ```
 
-Remova os `import` blocks depois — eles só precisam rodar uma vez.
+Remove the `import` blocks afterward — they only need to run once.
 
 ---
 
-## Problema 8: Deletei o Banco por Acidente
+## Problem 8: I Accidentally Deleted the Database
 
-Alguém rodou `terraform destroy` e levou o bucket S3 com 3 meses de artigos junto. Ou pior: um `apply` que deveria atualizar o bucket acabou recriando ele (e perdendo os dados).
+Someone ran `terraform destroy` and took the S3 bucket with 3 months of articles with it. Or worse: an `apply` that was supposed to update the bucket ended up recreating it (and losing the data).
 
-### Solução: Lifecycle Rules
+### Solution: Lifecycle Rules
 
-Proteja recursos críticos:
+Protect critical resources:
 
 ```hcl
 resource "aws_s3_bucket" "articles" {
@@ -590,9 +590,9 @@ resource "aws_s3_bucket" "articles" {
 }
 ```
 
-Com `prevent_destroy`, o Terraform **se recusa** a destruir o recurso — mesmo com `terraform destroy`. Você precisa remover a regra antes.
+With `prevent_destroy`, Terraform **refuses** to destroy the resource — even with `terraform destroy`. You need to remove the rule first.
 
-Outras regras úteis:
+Other useful rules:
 
 ```hcl
 resource "aws_lambda_function" "scraper" {
@@ -604,23 +604,23 @@ resource "aws_lambda_function" "scraper" {
 }
 ```
 
-| Regra | Quando usar |
+| Rule | When to use |
 |-------|------------|
-| `prevent_destroy` | Dados que não podem ser perdidos (S3 com dados, RDS, DynamoDB) |
-| `create_before_destroy` | Recursos que precisam de zero-downtime (cria o novo antes de deletar o antigo) |
-| `ignore_changes` | Atributos gerenciados fora do Terraform (ex: tag adicionada manualmente) |
+| `prevent_destroy` | Data that cannot be lost (S3 with data, RDS, DynamoDB) |
+| `create_before_destroy` | Resources that need zero-downtime (creates the new one before deleting the old) |
+| `ignore_changes` | Attributes managed outside Terraform (e.g., a tag added manually) |
 
 ---
 
-## Problema 9: O Mesmo Padrão se Repete 5 Vezes
+## Problem 9: The Same Pattern Repeats 5 Times
 
-Você tem 5 scrapers diferentes (Google News, Rundown, AI Research, etc.). Cada um precisa de Lambda + IAM Role + EventBridge Schedule + Log Group. Você copia e cola o bloco inteiro, mudando nomes e variáveis. 300 linhas viram 1500.
+You have 5 different scrapers (Google News, Rundown, AI Research, etc.). Each one needs Lambda + IAM Role + EventBridge Schedule + Log Group. You copy and paste the entire block, changing names and variables. 300 lines become 1500.
 
-### Solução: Módulos
+### Solution: Modules
 
-Módulos são como funções: recebem inputs, criam recursos, retornam outputs.
+Modules are like functions: they take inputs, create resources, return outputs.
 
-Crie a estrutura:
+Create the structure:
 
 ```
 infra/
@@ -634,7 +634,7 @@ infra/
 └── ...
 ```
 
-O módulo:
+The module:
 
 ```hcl
 # modules/scheduled-lambda/variables.tf
@@ -795,7 +795,7 @@ output "role_arn" {
 }
 ```
 
-Agora no `main.tf`, 5 scrapers em ~50 linhas:
+Now in `main.tf`, 5 scrapers in ~50 lines:
 
 ```hcl
 module "google_news_scraper" {
@@ -863,19 +863,19 @@ module "ai_research_agent" {
 }
 ```
 
-Cada scraper novo são ~15 linhas. Toda a complexidade de IAM, logs, e scheduling está encapsulada no módulo.
+Each new scraper is ~15 lines. All the complexity of IAM, logs, and scheduling is encapsulated in the module.
 
-> **Quando criar módulos?** Quando o mesmo padrão de recursos se repete 3+ vezes. Não crie módulo para um único recurso — `module "s3"` que só encapsula `aws_s3_bucket` é indireção sem valor.
+> **When to create modules?** When the same resource pattern repeats 3+ times. Don't create a module for a single resource — `module "s3"` that only wraps `aws_s3_bucket` is indirection without value.
 
 ---
 
-## Problema 10: Tenho Medo de Rodar Apply em Produção
+## Problem 10: I'm Afraid to Run Apply in Production
 
-Você fez uma mudança no Terraform. O `plan` mostra 12 recursos que vão ser modificados. Você acha que está certo... mas e se não estiver? Em dev, tanto faz. Em prod, uma mudança errada derruba tudo.
+You made a change in Terraform. The `plan` shows 12 resources that will be modified. You think it's correct... but what if it isn't? In dev, no big deal. In prod, a wrong change brings everything down.
 
-### Solução: CI/CD com Plan no PR
+### Solution: CI/CD with Plan on PR
 
-A ideia: toda mudança de infraestrutura passa por um Pull Request. O CI roda `terraform plan` automaticamente e comenta o resultado no PR. Você (e seu colega) revisam o plano antes de aplicar.
+The idea: every infrastructure change goes through a Pull Request. CI runs `terraform plan` automatically and comments the result on the PR. You (and your colleague) review the plan before applying.
 
 ```yaml
 # .github/workflows/terraform.yml
@@ -953,26 +953,26 @@ jobs:
       - run: terraform apply -auto-approve -var-file=envs/prod.tfvars
 ```
 
-O fluxo:
-1. Dev cria PR com mudança no Terraform
-2. CI roda `plan` e comenta no PR
-3. Colegas revisam o plan
-4. PR é aprovado e merged
-5. CI roda `apply` em produção
+The flow:
+1. Dev creates a PR with a Terraform change
+2. CI runs `plan` and comments on the PR
+3. Colleagues review the plan
+4. PR is approved and merged
+5. CI runs `apply` in production
 
-O `environment: production` no job de apply pode exigir aprovação manual no GitHub — uma camada extra de segurança.
+The `environment: production` on the apply job can require manual approval in GitHub — an extra layer of security.
 
-> **OIDC em vez de chaves**: repare no `role-to-assume`. Com OIDC, o GitHub Actions assume uma IAM role diretamente — sem guardar `AWS_ACCESS_KEY_ID` nos secrets do repositório. Mais seguro.
+> **OIDC instead of keys**: notice the `role-to-assume`. With OIDC, GitHub Actions assumes an IAM role directly — without storing `AWS_ACCESS_KEY_ID` in repository secrets. More secure.
 
 ---
 
-## Problema 11: As Senhas Estão no Código
+## Problem 11: Passwords Are in the Code
 
-O `terraform.tfvars` tem a senha do banco. O `main.tf` tem o token da API. Alguém commitou o `.tfstate` no Git — e ele tem **todos os valores em texto claro**, incluindo senhas.
+`terraform.tfvars` has the database password. `main.tf` has the API token. Someone committed `.tfstate` to Git — and it has **all values in plain text**, including passwords.
 
-### Solução: Secrets no Lugar Certo
+### Solution: Secrets in the Right Place
 
-**Regra 1**: nunca commite `terraform.tfstate` nem `terraform.tfvars` com senhas.
+**Rule 1**: never commit `terraform.tfstate` or `terraform.tfvars` with passwords.
 
 ```
 # .gitignore
@@ -982,7 +982,7 @@ O `terraform.tfvars` tem a senha do banco. O `main.tf` tem o token da API. Algu�
 .terraform/
 ```
 
-**Regra 2**: use AWS Secrets Manager ou SSM Parameter Store:
+**Rule 2**: use AWS Secrets Manager or SSM Parameter Store:
 
 ```hcl
 # Buscar um secret existente
@@ -1000,7 +1000,7 @@ resource "aws_lambda_function" "scraper" {
 }
 ```
 
-**Regra 3**: marque variáveis sensíveis:
+**Rule 3**: mark sensitive variables:
 
 ```hcl
 variable "db_password" {
@@ -1014,35 +1014,35 @@ output "db_endpoint" {
 }
 ```
 
-**Regra 4**: o state no S3 deve ter encriptação KMS e acesso restrito. O state contém **todos os valores** — incluindo os marcados como `sensitive`.
+**Rule 4**: state in S3 should have KMS encryption and restricted access. The state contains **all values** — including those marked as `sensitive`.
 
 ---
 
-## Recapitulando a Jornada
+## Recapping the Journey
 
-Começamos com recursos criados manualmente pelo console. Ao longo do guia, cada problema levou a um conceito do Terraform:
+We started with resources created manually through the console. Throughout the guide, each problem led to a Terraform concept:
 
-| Problema | Conceito | Solução |
+| Problem | Concept | Solution |
 |----------|---------|---------|
-| Ninguém sabe o que existe na AWS | **IaC básico** | Descrever infraestrutura em `.tf` |
-| Preciso de Lambda + S3 + IAM + Scheduler | **Recursos e dependências** | Terraform resolve a ordem automaticamente |
-| Mudança manual desincroniza | **State** | Arquivo de estado rastreia recursos reais |
-| Conflito entre devs | **Remote state + locking** | S3 backend com `use_lockfile` |
-| Arquivo gigante | **Organização** | Separar em arquivos + variables + locals |
-| Preciso de dev e prod | **Ambientes** | `tfvars` por ambiente, state separado |
-| Recursos já existem no console | **Import** | Import blocks + geração automática |
-| Deletei dados por acidente | **Lifecycle rules** | `prevent_destroy`, `create_before_destroy` |
-| Mesmo padrão 5 vezes | **Módulos** | Encapsular padrões reutilizáveis |
-| Medo de apply em produção | **CI/CD** | Plan no PR, apply no merge |
-| Senhas no código | **Segurança** | Secrets Manager, `sensitive`, encriptação |
+| Nobody knows what exists in AWS | **Basic IaC** | Describe infrastructure in `.tf` |
+| Need Lambda + S3 + IAM + Scheduler | **Resources and dependencies** | Terraform resolves order automatically |
+| Manual change causes drift | **State** | State file tracks real resources |
+| Conflict between devs | **Remote state + locking** | S3 backend with `use_lockfile` |
+| Giant file | **Organization** | Split into files + variables + locals |
+| Need dev and prod | **Environments** | `tfvars` per environment, separate state |
+| Resources already exist in console | **Import** | Import blocks + automatic generation |
+| Accidentally deleted data | **Lifecycle rules** | `prevent_destroy`, `create_before_destroy` |
+| Same pattern 5 times | **Modules** | Encapsulate reusable patterns |
+| Afraid of apply in production | **CI/CD** | Plan on PR, apply on merge |
+| Passwords in code | **Security** | Secrets Manager, `sensitive`, encryption |
 
-Cada conceito resolveu um problema concreto. Comece simples — um `main.tf` com `terraform apply` já é infinitamente melhor que infraestrutura manual. Os outros conceitos, adicione quando o problema correspondente aparecer.
+Each concept solved a concrete problem. Start simple — a `main.tf` with `terraform apply` is infinitely better than manual infrastructure. Add the other concepts when the corresponding problem shows up.
 
 ---
 
-## Referência Rápida
+## Quick Reference
 
-### Comandos
+### Commands
 
 ```bash
 terraform init              # Inicializar projeto
@@ -1057,7 +1057,7 @@ terraform import ADDR ID    # Importar recurso existente
 terraform output            # Ver outputs
 ```
 
-### Estrutura de Projeto
+### Project Structure
 
 ```
 infra/
@@ -1082,11 +1082,11 @@ infra/
 
 ### Checklist
 
-- [ ] State remoto no S3 com locking e encriptação
-- [ ] Versões fixadas do Terraform e providers
-- [ ] `.terraform.lock.hcl` commitado no Git
-- [ ] `terraform.tfstate` e secrets no `.gitignore`
-- [ ] `prevent_destroy` em recursos com dados
-- [ ] `default_tags` no provider
-- [ ] `terraform plan` no CI para todo PR
-- [ ] Secrets no AWS Secrets Manager, não no código
+- [ ] Remote state in S3 with locking and encryption
+- [ ] Pinned Terraform and provider versions
+- [ ] `.terraform.lock.hcl` committed to Git
+- [ ] `terraform.tfstate` and secrets in `.gitignore`
+- [ ] `prevent_destroy` on resources with data
+- [ ] `default_tags` on the provider
+- [ ] `terraform plan` in CI for every PR
+- [ ] Secrets in AWS Secrets Manager, not in code

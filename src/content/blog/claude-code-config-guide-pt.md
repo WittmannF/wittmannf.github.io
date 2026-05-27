@@ -32,7 +32,7 @@ Antes de mergulhar nos detalhes, aqui está o mapa completo de tudo que existe:
   rules/*.md             # Regras pessoais
   skills/*/SKILL.md      # Skills pessoais
   agents/*.md            # Agents pessoais
-  commands/*.md          # Comandos (legado)
+  commands/*.md          # Comandos (ainda funciona, veja Skills)
   projects/*/memory/     # Memória automática por projeto
     MEMORY.md
     *.md
@@ -52,7 +52,7 @@ Antes de mergulhar nos detalhes, aqui está o mapa completo de tudo que existe:
     rules/*.md           # Regras do projeto
     skills/*/SKILL.md    # Skills do projeto
     agents/*.md          # Agents do projeto
-    commands/*.md        # Comandos (legado)
+    commands/*.md        # Comandos (ainda funciona, veja Skills)
 ```
 
 Parece muito? É porque existem duas dimensões ortogonais:
@@ -622,14 +622,16 @@ Report findings with severity (critical/high/medium/low) and fix recommendations
 
 ---
 
-### .claude/commands/ — Comandos (Legado)
+### .claude/commands/ — Comandos (Incorporados nas Skills)
 
 | Propriedade | Valor |
 |---|---|
 | **Caminho** | `.claude/commands/<nome>.md` |
-| **Status** | **Depreciado** — use skills no lugar |
+| **Status** | **Superseded** — ainda funciona, mas skills oferecem mais recursos |
 
-Commands são a versão antiga de skills. Ainda funcionam, mas se uma skill e um command têm o mesmo nome, a skill tem prioridade. Para migrar, mova o arquivo para `.claude/skills/<nome>/SKILL.md`.
+Commands foram incorporados no framework de skills. Um arquivo em `.claude/commands/deploy.md` e uma skill em `.claude/skills/deploy/SKILL.md` criam o mesmo comando `/deploy` e funcionam de forma idêntica. Seus commands existentes continuam funcionando — não há plano de remover o suporte.
+
+A diferença é que skills oferecem extras opcionais: estrutura de diretório com arquivos auxiliares, invocação automática pelo Claude, e frontmatter mais rico. Para comandos simples de arquivo único, `.claude/commands/` funciona perfeitamente. Se uma skill e um command compartilham o mesmo nome, a skill tem prioridade.
 
 ---
 
@@ -760,7 +762,7 @@ Não sabe onde colocar algo? Use este fluxo:
 | `~/.claude/projects/*/memory/` | Memória aprendida | Pessoal | N/A | Sob demanda |
 | `.claude/skills/*/SKILL.md` | Workflows reutilizáveis | Time/Pessoal | Sim/N/A | Frontmatter sempre; conteúdo sob demanda |
 | `.claude/agents/*.md` | Subagentes especializados | Time/Pessoal | Sim/N/A | Sob demanda |
-| `.claude/commands/*.md` | Comandos (legado) | Time/Pessoal | Sim/N/A | Sob demanda |
+| `.claude/commands/*.md` | Comandos (incorporados nas skills) | Time/Pessoal | Sim/N/A | Sob demanda |
 | `hooks` (em settings) | Automação por eventos | Time/Pessoal | Depende | Por evento |
 | `.mcp.json` | Servidores MCP | Time | Sim | Sempre |
 | `.worktreeinclude` | Arquivos para worktrees | Time | Sim | Na criação |

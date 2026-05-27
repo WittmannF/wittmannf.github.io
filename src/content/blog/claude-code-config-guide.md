@@ -32,7 +32,7 @@ Before diving into the details, here is the complete map of everything that exis
   rules/*.md             # Personal rules
   skills/*/SKILL.md      # Personal skills
   agents/*.md            # Personal agents
-  commands/*.md          # Commands (legacy)
+  commands/*.md          # Commands (still works, see Skills)
   projects/*/memory/     # Auto memory per project
     MEMORY.md
     *.md
@@ -52,7 +52,7 @@ Before diving into the details, here is the complete map of everything that exis
     rules/*.md           # Project rules
     skills/*/SKILL.md    # Project skills
     agents/*.md          # Project agents
-    commands/*.md        # Commands (legacy)
+    commands/*.md        # Commands (still works, see Skills)
 ```
 
 Looks like a lot? That is because there are two orthogonal dimensions:
@@ -622,14 +622,16 @@ Report findings with severity (critical/high/medium/low) and fix recommendations
 
 ---
 
-### .claude/commands/ — Commands (Legacy)
+### .claude/commands/ — Commands (Merged into Skills)
 
 | Property | Value |
 |---|---|
 | **Path** | `.claude/commands/<name>.md` |
-| **Status** | **Deprecated** — use skills instead |
+| **Status** | **Superseded** — still works, but skills offer more features |
 
-Commands are the old version of skills. They still work, but if a skill and a command share the same name, the skill takes priority. To migrate, move the file to `.claude/skills/<name>/SKILL.md`.
+Commands have been merged into the skills framework. A file at `.claude/commands/deploy.md` and a skill at `.claude/skills/deploy/SKILL.md` both create the same `/deploy` command and work identically. Your existing commands keep working — there is no plan to remove support.
+
+The difference is that skills offer optional extras: a directory structure for supporting files, auto-invocation by Claude, and richer frontmatter configuration. For simple single-file commands, `.claude/commands/` is perfectly fine. If a skill and a command share the same name, the skill takes priority.
 
 ---
 
@@ -760,7 +762,7 @@ Not sure where to put something? Use this flow:
 | `~/.claude/projects/*/memory/` | Learned memory | Personal | N/A | On demand |
 | `.claude/skills/*/SKILL.md` | Reusable workflows | Team/Personal | Yes/N/A | Frontmatter always; content on demand |
 | `.claude/agents/*.md` | Specialized subagents | Team/Personal | Yes/N/A | On demand |
-| `.claude/commands/*.md` | Commands (legacy) | Team/Personal | Yes/N/A | On demand |
+| `.claude/commands/*.md` | Commands (merged into skills) | Team/Personal | Yes/N/A | On demand |
 | `hooks` (in settings) | Event-driven automation | Team/Personal | Depends | Per event |
 | `.mcp.json` | MCP servers | Team | Yes | Always |
 | `.worktreeinclude` | Files for worktrees | Team | Yes | On creation |
