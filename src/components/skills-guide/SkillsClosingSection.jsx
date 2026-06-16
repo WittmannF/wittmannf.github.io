@@ -14,6 +14,11 @@ const resources = [
     desc: 'Rules, hooks, agents, settings — the full customization picture',
   },
   {
+    label: 'Read the article version',
+    url: '/blog/claude-skills-guide',
+    desc: 'Text-based guide with the same content — better for search and offline reading',
+  },
+  {
     label: 'thedotmack plugin (open source)',
     url: 'https://github.com/moazbuilds/claudeclaw',
     desc: 'A production plugin with multi-file skills, references/, examples/ structure',
