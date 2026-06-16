@@ -6,7 +6,7 @@ tags: ['Claude Code', 'AI', 'Developer Tools', 'Workflow', 'Automation']
 lang: 'en'
 ---
 
-> **Prefer a visual, hands-on format?** This article has an [interactive version](/blog/claude-skills-guide-interactive) with clickable frontmatter explorer, live argument demos, step-by-step tutorials, and a production checklist.
+> **Prefer a visual, hands-on format?** This article has an [interactive version](/guides/claude-skills) with clickable frontmatter explorer, live argument demos, step-by-step tutorials, and a production checklist.
 
 Claude Code starts fresh every session. Without skills, you repeat the same instructions endlessly — re-explaining your deploy pipeline, your code review standards, your SQL conventions, your commit style. Skills solve this by letting you write those instructions once, in a file, and invoke them reliably.
 
@@ -434,4 +434,4 @@ Place this at `.claude/agents/security-reviewer.md`. Claude spawns it as needed.
 - **[Official skills reference](https://code.claude.com/docs/en/skills)** — frontmatter fields, variables, invocation modes
 - **[Claude Code customization](https://docs.anthropic.com/en/docs/claude-code/customization)** — rules, hooks, agents, settings
 - **[Claude Code from Source](https://claude-code-from-source.com/)** — technical internals, chapter 12 covers extensibility
-- **[Interactive version of this guide](/blog/claude-skills-guide-interactive)** — clickable examples and a live checklist
+- **[Interactive version of this guide](/guides/claude-skills)** — clickable examples and a live checklist
