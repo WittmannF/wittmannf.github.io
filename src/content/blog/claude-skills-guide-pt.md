@@ -6,7 +6,7 @@ tags: ['Claude Code', 'IA', 'Ferramentas de Desenvolvimento', 'Workflow', 'Autom
 lang: 'pt'
 ---
 
-> **Prefere um formato visual e interativo?** Este artigo tem uma [versão interativa](/blog/claude-skills-guide-interactive) com explorador de frontmatter clicável, demos ao vivo de argumentos, tutoriais passo a passo e um checklist de produção.
+> **Prefere um formato visual e interativo?** Este artigo tem uma [versão interativa](/guides/claude-skills) com explorador de frontmatter clicável, demos ao vivo de argumentos, tutoriais passo a passo e um checklist de produção.
 
 O Claude Code começa cada sessão do zero. Sem skills, você repete as mesmas instruções indefinidamente — re-explicando seu pipeline de deploy, seus padrões de code review, suas convenções de SQL, seu estilo de commit. As skills resolvem isso: você escreve essas instruções uma vez, em um arquivo, e as invoca de forma confiável.
 
@@ -411,4 +411,4 @@ Coloque em `.claude/agents/revisor-seguranca.md`. O Claude o instancia conforme 
 - **[Referência oficial de skills](https://code.claude.com/docs/en/skills)** — campos do frontmatter, variáveis, modos de invocação
 - **[Customização do Claude Code](https://docs.anthropic.com/en/docs/claude-code/customization)** — regras, hooks, agentes, configurações
 - **[Claude Code from Source](https://claude-code-from-source.com/)** — internos técnicos, capítulo 12 cobre extensibilidade
-- **[Versão interativa deste guia](/blog/claude-skills-guide-interactive)** — exemplos clicáveis e checklist ao vivo
+- **[Versão interativa deste guia](/guides/claude-skills)** — exemplos clicáveis e checklist ao vivo
