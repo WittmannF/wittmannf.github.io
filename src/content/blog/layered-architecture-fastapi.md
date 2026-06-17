@@ -14,6 +14,8 @@ This guide takes a different approach. We're going to start with a real RAG app 
 
 By the end, you'll have built the intuition. Not just the pattern.
 
+> **Want to see the structures as code?** The full examples are [available on GitHub](https://github.com/WittmannF/wittmannf.github.io/tree/main/public/blog/layered-architecture-fastapi), from the single-file monolith to the feature-oriented version with internal packages.
+
 ---
 
 ## Before the code: what do layers separate?
@@ -544,6 +546,8 @@ app/
     embeddings.py
 ```
 
+The matching version is in [`03-layered-packages`](https://github.com/WittmannF/wittmannf.github.io/tree/main/public/blog/layered-architecture-fastapi/03-layered-packages). The earlier steps live in [`01-single-file`](https://github.com/WittmannF/wittmannf.github.io/tree/main/public/blog/layered-architecture-fastapi/01-single-file) and [`02-layered-files`](https://github.com/WittmannF/wittmannf.github.io/tree/main/public/blog/layered-architecture-fastapi/02-layered-files).
+
 This is still the same architecture we just built:
 
 - `api/routers/` is the old `router.py`: HTTP in, HTTP out.
@@ -581,6 +585,8 @@ app/
     deps.py
 ```
 
+That version is in [`04-feature-modules`](https://github.com/WittmannF/wittmannf.github.io/tree/main/public/blog/layered-architecture-fastapi/04-feature-modules).
+
 And if one feature grows on its own, it can become internal packages:
 
 ```text
@@ -603,6 +609,8 @@ app/
         llm_client.py
         embedding_client.py
 ```
+
+That final shape is in [`05-feature-packages`](https://github.com/WittmannF/wittmannf.github.io/tree/main/public/blog/layered-architecture-fastapi/05-feature-packages).
 
 Notice that this is not switching architectures midway. It is the same idea growing in two steps:
 
