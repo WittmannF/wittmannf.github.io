@@ -505,6 +505,112 @@ Cada pedido de mudança mapeia para um único lugar no código. Essa é a promes
 
 ---
 
+## Como isso cresceria em um FastAPI real?
+
+Uma coisa importante: FastAPI não prescreve uma arquitetura oficial com `schemas`, `services` e `repositories`. O que ele oferece são as peças de framework: `APIRouter` para dividir endpoints, modelos Pydantic para request/response, `Depends()` para injeção de dependências e `app.dependency_overrides` para testes.
+
+`Service Layer` e `Repository` vêm de padrões de arquitetura de aplicação, não do FastAPI. Então uma estrutura realista combina os dois mundos: deixa HTTP e dependências no lado FastAPI, e move casos de uso e persistência para camadas próprias.
+
+O primeiro crescimento natural do nosso app não muda a ideia. Só transforma arquivos em pastas:
+
+```text
+app/
+  main.py
+
+  core/
+    config.py
+    logging.py
+
+  api/
+    deps.py
+    routers/
+      news_qa.py
+
+  schemas/
+    news_qa.py
+
+  services/
+    news_qa.py
+
+  repositories/
+    articles.py
+    vector_store.py
+
+  clients/
+    news_api.py
+    llm.py
+    embeddings.py
+```
+
+Essa estrutura ainda é a mesma arquitetura que acabamos de construir:
+
+- `api/routers/` é o antigo `router.py`: HTTP entra, HTTP sai.
+- `schemas/` é o antigo `schemas.py`: contratos Pydantic de request e response.
+- `services/` é o antigo `services.py`: casos de uso e orquestração.
+- `repositories/` é o antigo `repositories.py`: persistência e recuperação de dados internos.
+- `clients/` separa integrações externas que não são exatamente repositórios, como LLM, embeddings e News API.
+- `api/deps.py` substitui o `set_service`: aqui entram `Depends()` e a montagem das dependências usadas pelos routers.
+
+Essa distinção entre `repositories` e `clients` evita um nome ruim que aparece muito em backends pequenos. Um `ArticleRepository` representa uma coleção de artigos que o seu app controla. Um `OpenAIClient` não é uma coleção do domínio; é um cliente para um serviço externo. Ambos ficam fora do serviço, mas não precisam ter o mesmo nome.
+
+Quando o app cresce de verdade, o problema deixa de ser "tenho muitos arquivos?" e passa a ser "tenho muitos domínios?". Se você tiver `news_qa`, `users`, `billing`, `notifications` e `admin`, pastas globais como `services/` e `repositories/` viram gavetas grandes demais. Nesse ponto, faz sentido agrupar por feature e manter as camadas dentro de cada módulo:
+
+```text
+app/
+  main.py
+  core/
+    config.py
+
+  modules/
+    news_qa/
+      router.py
+      schemas.py
+      service.py
+      repositories.py
+      clients.py
+
+    users/
+      router.py
+      schemas.py
+      service.py
+      repositories.py
+
+  api/
+    deps.py
+```
+
+E, se uma feature específica crescer, ela pode virar pacotes internos:
+
+```text
+app/
+  modules/
+    news_qa/
+      routers/
+        http.py
+      schemas/
+        requests.py
+        responses.py
+      services/
+        answer_question.py
+        ingest_articles.py
+      repositories/
+        article_repository.py
+        vector_repository.py
+      clients/
+        news_client.py
+        llm_client.py
+        embedding_client.py
+```
+
+Repare que isso não é trocar de arquitetura no meio do caminho. É a mesma ideia crescendo em duas etapas:
+
+1. Primeiro, arquivos viram pastas: `router.py` vira `routers/`, `schemas.py` vira `schemas/`, `repositories.py` vira `repositories/`.
+2. Depois, quando há muitos domínios, você agrupa por feature e mantém as camadas dentro de cada feature.
+
+Essa progressão também evita uma armadilha comum: começar com "Clean Architecture" demais para um app que ainda nem sentiu dor suficiente. O desenho deve ficar mais explícito conforme as mudanças reais pedem fronteiras mais claras.
+
+---
+
 ## O insight específico de LLM: onde fica a chamada ao modelo?
 
 Isso confunde a maioria dos engenheiros de ML. Chamar o LLM é uma operação de "serviço" ou de "repositório"?
