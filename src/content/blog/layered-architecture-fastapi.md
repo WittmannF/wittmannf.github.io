@@ -16,6 +16,22 @@ By the end, you'll have built the intuition. Not just the pattern.
 
 ---
 
+## Before the code: what do layers separate?
+
+When people talk about layered architecture, they usually mean a logical separation between three kinds of concerns:
+
+- **Presentation**: how the outside world talks to the system. In an API, that's HTTP, status codes, request validation, authentication, and serialization.
+- **Application/domain**: what the system actually does. This is where use cases, rules, orchestration, and decisions live.
+- **Data/infrastructure**: how the system fetches, stores, or calls things outside itself. Databases, external APIs, caches, queues, vector stores, and LLM clients live here or orbit this boundary.
+
+Martin Fowler calls this [Presentation-Domain-Data Layering](https://martinfowler.com/bliki/PresentationDomainDataLayering.html). The most underrated benefit is not "tidier folders"; it's reducing mental scope. When you're changing application logic, ideally you don't have to think about `HTTPException`. When you're changing storage, ideally you don't have to think about the response model.
+
+One more important distinction: a layer is not necessarily a tier. Your router, service, and repository can all run in the same process, in the same container, even in the same Python file if you want. The separation is conceptual before it's physical. The point is to create boundaries that help the code change with less friction.
+
+With that in mind, let's start wrong in the useful way: everything in one file.
+
+---
+
 ## The app: a news Q&A assistant
 
 We're building a simple RAG app over news articles. The user asks a question, we fetch recent news, embed the articles, retrieve the most relevant ones, and send them to an LLM with the question.
@@ -65,7 +81,7 @@ def fetch_news(topic: str) -> list[str]:
 
 
 def embed_text(text: str) -> list[float]:
-    """Get a simple embedding via Claude's token probabilities (stub for real embedder)."""
+    """Get a simple hash-based embedding (stub for a real embedder)."""
     # In practice, use a dedicated embedding model. Here we use a cheap heuristic
     # to keep deps minimal: hash words into a fixed-size float vector.
     import hashlib
@@ -161,6 +177,10 @@ This is the moment when a **service layer** starts to earn its keep.
 
 The service layer's job is to contain the "what does this app do" logic: build the prompt, call the LLM, return the answer. It knows nothing about HTTP. It doesn't care whether it's being called by a FastAPI endpoint or a background job or a test. When you want to swap the LLM, you change the service — and only the service.
 
+More formally, a [Service Layer](https://martinfowler.com/eaaCatalog/serviceLayer.html) defines the application's boundary: which operations it offers and how it coordinates each operation's response. In our app, `answer(question)` and `ingest(topic)` are application operations. The router only exposes those operations over HTTP.
+
+That distinction looks small, but it changes the design: the endpoint stops being the place where the use case happens and becomes an input adapter. It translates HTTP into an application call.
+
 We'll build up to it. First, let's see the next pain.
 
 ---
@@ -176,6 +196,10 @@ But `article_store` is a module-level list of tuples. To deduplicate, you'd need
 What you actually want is a thing you can ask: "do you already have this article?" — something with a clean interface over your storage. That's a **repository**.
 
 The repository hides *how* things are stored. You ask it for data, you tell it to store data, and you don't care whether it's an in-memory list, a Redis cache, or a PostgreSQL table. When the cache requirement arrives, you add it inside the repository, not scattered across your endpoints.
+
+In Fowler's classic definition, a [Repository](https://martinfowler.com/eaaCatalog/repository.html) behaves like an in-memory collection over persisted objects. That's a useful image: from the outside, you want to think in terms of `articles.add(text)` and `articles.retrieve(question)`, not `INSERT`, vector indexes, cache TTLs, or calls to a remote service.
+
+One nuance: not every class that calls something external has to be called a repository. `ArticleRepository` fits well because it represents a searchable collection of articles. `NewsRepository`, on the other hand, could also be called `NewsClient` or `NewsGateway`, because it doesn't represent an internal domain collection; it wraps an external API. The name matters less than the boundary: the service shouldn't know News API transport details.
 
 ---
 
@@ -244,6 +268,8 @@ class IngestResponse(BaseModel):
 ### The repository layer
 
 The repository owns two things: the external data sources (news API) and the internal storage (article store). In an LLM app, the repository is also often the "embedding store" — the thing that knows how articles are indexed and retrieved.
+
+In a larger system, I would probably split this into two concepts: an `ArticleRepository` for the searchable vector collection, and a `NewsClient` or `NewsGateway` for the external API. Here I keep both in the same file to keep the article short, but the conceptual boundary is the same: the service talks to high-level interfaces, not transport, storage, or vendor details.
 
 ```python
 # repositories.py
@@ -450,6 +476,12 @@ app.include_router(router)
 
 The `main.py` is now just wiring. It creates the pieces and connects them. No logic lives here.
 
+This file is what many authors call the **composition root**: the place where concrete dependencies are assembled. This is where you decide: Anthropic or OpenAI, in-memory repository or pgvector, real News API or a fake for tests.
+
+This is the practical heart of dependency inversion. The use case receives ready-made dependencies; it doesn't create everything it uses directly. The application policy stays more stable, and external details become pluggable.
+
+In a real FastAPI app, you'd probably replace the global `set_service` with `Depends()`. The official docs for [bigger applications with multiple files](https://fastapi.tiangolo.com/tutorial/bigger-applications/) show `APIRouter` as the natural tool for organizing endpoints, and the docs for [dependency overrides in tests](https://fastapi.tiangolo.com/advanced/testing-dependencies/) show `app.dependency_overrides` for swapping dependencies in tests. I used `set_service` here because it keeps the mechanics visible without introducing one more abstraction in the middle of the explanation.
+
 ---
 
 ## The full picture
@@ -481,6 +513,10 @@ This confuses most ML engineers. Is calling the LLM a "service" operation or a "
 
 Here's the useful frame: **it depends on how you model it.**
 
+RAG makes this boundary even more interesting. The original [Retrieval-Augmented Generation](https://arxiv.org/abs/2005.11401) paper describes a combination of the model's parametric memory and non-parametric memory, usually a retrievable external index. Translated into architecture: the model and the index change for different reasons. The index changes when the data changes. The prompt changes when desired behavior changes. The LLM provider changes because of cost, latency, quality, or policy.
+
+Those reasons for change are a good guide for drawing boundaries.
+
 If the LLM is *a component of your logic* — you're building a prompt, sending it, interpreting the response — that's a service operation. The service owns the prompt, the model choice, the retry policy.
 
 If the LLM is *an external source of data* — you're fetching a completion the same way you'd fetch from a database — then wrapping it in a repository makes sense. This is common when the LLM is just one of many data sources (alongside a vector DB, a SQL database, a news API).
@@ -489,11 +525,17 @@ In our app, the LLM is deeply part of the logic (we build the prompt, we interpr
 
 The boundary is fuzzy. Don't agonize over it. When in doubt: if it's shaped like "fetch something external," it's a repository. If it's shaped like "compute something using your domain logic," it's a service.
 
+Another way to think about it: RAG is not just "put context in the prompt." OpenAI's [accuracy optimization guidance](https://developers.openai.com/api/docs/guides/optimizing-llm-accuracy) treats prompt engineering, retrieval, and fine-tuning as different levers. If retrieval is a separate lever, it deserves a separate surface in the code. That lets you test retrieval quality without testing generation at the same time.
+
 ---
 
 ## Testing: the payoff
 
 Here's what a test suite looks like with the layered version:
+
+This is where **test doubles** enter the picture. A fake is a simple implementation that really works, like an in-memory repository. A mock is an object used to verify interaction, like "the LLM client was called with a prompt containing Tesla." Martin Fowler uses [Test Double](https://www.martinfowler.com/bliki/TestDouble.html) as the umbrella term for these substitutes.
+
+Layered architecture helps because each external dependency becomes replaceable at the right point. You don't have to fake HTTP to test retrieval. You don't have to call the News API to test prompting. You don't have to spend tokens to test that orchestration called the model with the right context.
 
 ```python
 # test_retrieval.py
@@ -583,5 +625,9 @@ This guide deliberately kept things simple: in-memory storage, a single service,
 - **Streaming responses** — `StreamingResponse` in the router, `stream=True` in the service, without changing the repository at all
 
 Each of these fits cleanly into the layer where it belongs. That's how you know the architecture is working: new requirements have obvious homes.
+
+If you keep evolving this design, you'll eventually run into terms like **Ports and Adapters**, **Hexagonal Architecture**, **Onion Architecture**, and **Clean Architecture**. They don't mean exactly the same thing in every detail, but they share an intuition: the application lives in the center, and the outside world talks to it through adapters. Alistair Cockburn describes [hexagonal architecture](https://alistair.cockburn.us/hexagonal-architecture) as an application on the inside communicating through ports with things on the outside.
+
+In our example, HTTP is an input adapter. A nightly job would be another. The News API, vector store, and LLM are output adapters. The service layer is where those adapters meet to perform a use case.
 
 You started with one file. You ended with five. The app does exactly the same thing. But now when something changes — and something always changes — you know where to go.
