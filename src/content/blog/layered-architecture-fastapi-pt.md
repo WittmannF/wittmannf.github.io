@@ -14,6 +14,24 @@ Este guia segue um caminho diferente. Vamos começar com um app RAG real — um 
 
 No final, você terá construído a intuição. Não apenas o padrão.
 
+> **Quer ver as estruturas como código?** Os exemplos completos estão [disponíveis no GitHub](https://github.com/WittmannF/wittmannf.github.io/tree/main/public/blog/layered-architecture-fastapi), indo do monólito em um arquivo até a versão organizada por feature com pacotes internos.
+
+---
+
+## Antes do código: o que as camadas separam?
+
+Quando falamos em arquitetura em camadas, normalmente estamos falando de uma separação lógica entre três tipos de preocupação:
+
+- **Apresentação**: como o mundo externo fala com o sistema. Em uma API, isso é HTTP, status code, validação de request, autenticação e serialização.
+- **Aplicação/domínio**: o que o sistema realmente faz. Aqui vivem os casos de uso, regras, orquestração e decisões.
+- **Dados/infraestrutura**: como o sistema busca, grava ou chama coisas fora dele. Banco de dados, APIs externas, cache, filas, vector stores e clientes de LLM entram aqui ou orbitam essa fronteira.
+
+Martin Fowler chama isso de [Presentation-Domain-Data Layering](https://martinfowler.com/bliki/PresentationDomainDataLayering.html). O benefício mais subestimado não é "organização bonita"; é reduzir o escopo mental. Quando você está mexendo na lógica da aplicação, idealmente não precisa pensar em `HTTPException`. Quando está mexendo no armazenamento, idealmente não precisa pensar no formato da resposta HTTP.
+
+Também vale uma distinção importante: camada não é necessariamente tier. Você pode ter router, service e repository rodando no mesmo processo, no mesmo container, no mesmo arquivo Python se quiser. A separação é conceitual antes de ser física. O ponto é criar fronteiras que ajudem o código a mudar com menos atrito.
+
+Com isso em mente, vamos começar errado do jeito certo: tudo em um arquivo só.
+
 ---
 
 ## O app: um assistente de notícias com Q&A
@@ -159,6 +177,10 @@ Esse é o momento em que uma **camada de serviço** começa a se pagar.
 
 O trabalho da camada de serviço é conter a lógica de "o que esse app faz de fato": monta o prompt, chama o LLM, retorna a resposta. Ela não sabe nada sobre HTTP. Não importa se está sendo chamada por um endpoint do FastAPI, um job em background ou um teste. Quando você quer trocar o LLM, você muda o serviço — e apenas o serviço.
 
+Em termos mais formais, a [Service Layer](https://martinfowler.com/eaaCatalog/serviceLayer.html) define a fronteira da aplicação: quais operações ela oferece e como coordena a resposta de cada operação. No nosso caso, `answer(question)` e `ingest(topic)` são operações da aplicação. O router só expõe essas operações via HTTP.
+
+Essa distinção parece pequena, mas muda o design: o endpoint deixa de ser o lugar onde o caso de uso acontece e passa a ser apenas um adaptador de entrada. Ele traduz HTTP para uma chamada de aplicação.
+
 Vamos chegar lá. Primeiro, a próxima dor.
 
 ---
@@ -174,6 +196,10 @@ Mas `article_store` é uma lista de tuplas no nível do módulo. Para deduplicar
 O que você realmente quer é algo que possa responder: "você já tem esse artigo?" — uma interface limpa sobre o seu armazenamento. Isso é um **repositório**.
 
 O repositório esconde *como* as coisas são armazenadas. Você pede dados, solicita o armazenamento de dados, e não precisa saber se é uma lista em memória, um cache Redis ou uma tabela PostgreSQL. Quando o requisito de cache aparece, você adiciona dentro do repositório, não espalhado pelos seus endpoints.
+
+Na definição clássica de Fowler, um [Repository](https://martinfowler.com/eaaCatalog/repository.html) se comporta como uma coleção em memória sobre objetos persistidos. Essa imagem é útil: de fora, você quer pensar em `articles.add(text)` e `articles.retrieve(question)`, não em `INSERT`, índices vetoriais, TTL de cache ou chamadas para um serviço remoto.
+
+Uma nuance: nem toda classe que chama algo externo precisa ser chamada de repositório. `ArticleRepository` encaixa bem porque representa uma coleção pesquisável de artigos. `NewsRepository`, por outro lado, também poderia ser chamado de `NewsClient` ou `NewsGateway`, porque ele não representa uma coleção interna do domínio; ele encapsula uma API externa. O nome importa menos que a fronteira: o serviço não deve conhecer detalhes da News API.
 
 ---
 
@@ -242,6 +268,8 @@ class IngestResponse(BaseModel):
 ### A camada de repositório
 
 O repositório é responsável por duas coisas: as fontes externas de dados (API de notícias) e o armazenamento interno (article store). Em apps com LLM, o repositório frequentemente também é o "embedding store" — a peça que sabe como os artigos estão indexados e como recuperá-los.
+
+Em um sistema maior, eu provavelmente separaria isso em dois conceitos: um `ArticleRepository` para a coleção/index vetorial e um `NewsClient` ou `NewsGateway` para a API externa. Aqui mantenho ambos no mesmo arquivo para o artigo ficar menor, mas a fronteira conceitual continua a mesma: o serviço fala com interfaces de alto nível, não com detalhes de transporte, storage ou vendor.
 
 ```python
 # repositories.py
@@ -448,6 +476,12 @@ app.include_router(router)
 
 O `main.py` agora é só a cola que une as peças. Nenhuma lógica vive aqui.
 
+Esse arquivo é o que muitos autores chamam de **composition root**: o lugar onde as dependências concretas são montadas. É aqui que você decide: Anthropic ou OpenAI, repositório em memória ou pgvector, News API real ou fake de teste.
+
+Esse é o coração prático da inversão de dependência. O caso de uso recebe dependências prontas; ele não cria diretamente tudo que usa. Assim, a política da aplicação fica mais estável, e os detalhes externos ficam plugáveis.
+
+No FastAPI real, você provavelmente trocaria o `set_service` global por `Depends()`. A documentação oficial de [aplicações maiores com múltiplos arquivos](https://fastapi.tiangolo.com/tutorial/bigger-applications/) mostra `APIRouter` como a ferramenta natural para organizar endpoints, e a documentação de [dependency overrides em testes](https://fastapi.tiangolo.com/advanced/testing-dependencies/) mostra `app.dependency_overrides` para trocar dependências em testes. Usei `set_service` aqui porque deixa a mecânica visível sem introduzir mais uma abstração no meio da explicação.
+
 ---
 
 ## O quadro completo
@@ -473,11 +507,127 @@ Cada pedido de mudança mapeia para um único lugar no código. Essa é a promes
 
 ---
 
+## Como isso cresceria em um FastAPI real?
+
+Uma coisa importante: FastAPI não prescreve uma arquitetura oficial com `schemas`, `services` e `repositories`. O que ele oferece são as peças de framework: `APIRouter` para dividir endpoints, modelos Pydantic para request/response, `Depends()` para injeção de dependências e `app.dependency_overrides` para testes.
+
+`Service Layer` e `Repository` vêm de padrões de arquitetura de aplicação, não do FastAPI. Então uma estrutura realista combina os dois mundos: deixa HTTP e dependências no lado FastAPI, e move casos de uso e persistência para camadas próprias.
+
+O primeiro crescimento natural do nosso app não muda a ideia. Só transforma arquivos em pastas:
+
+```text
+app/
+  main.py
+
+  core/
+    config.py
+    logging.py
+
+  api/
+    deps.py
+    routers/
+      news_qa.py
+
+  schemas/
+    news_qa.py
+
+  services/
+    news_qa.py
+
+  repositories/
+    articles.py
+    vector_store.py
+
+  clients/
+    news_api.py
+    llm.py
+    embeddings.py
+```
+
+A versão correspondente está em [`03-layered-packages`](https://github.com/WittmannF/wittmannf.github.io/tree/main/public/blog/layered-architecture-fastapi/03-layered-packages). As etapas anteriores ficam em [`01-single-file`](https://github.com/WittmannF/wittmannf.github.io/tree/main/public/blog/layered-architecture-fastapi/01-single-file) e [`02-layered-files`](https://github.com/WittmannF/wittmannf.github.io/tree/main/public/blog/layered-architecture-fastapi/02-layered-files).
+
+Essa estrutura ainda é a mesma arquitetura que acabamos de construir:
+
+- `api/routers/` é o antigo `router.py`: HTTP entra, HTTP sai.
+- `schemas/` é o antigo `schemas.py`: contratos Pydantic de request e response.
+- `services/` é o antigo `services.py`: casos de uso e orquestração.
+- `repositories/` é o antigo `repositories.py`: persistência e recuperação de dados internos.
+- `clients/` separa integrações externas que não são exatamente repositórios, como LLM, embeddings e News API.
+- `api/deps.py` substitui o `set_service`: aqui entram `Depends()` e a montagem das dependências usadas pelos routers.
+
+Essa distinção entre `repositories` e `clients` evita um nome ruim que aparece muito em backends pequenos. Um `ArticleRepository` representa uma coleção de artigos que o seu app controla. Um `OpenAIClient` não é uma coleção do domínio; é um cliente para um serviço externo. Ambos ficam fora do serviço, mas não precisam ter o mesmo nome.
+
+Quando o app cresce de verdade, o problema deixa de ser "tenho muitos arquivos?" e passa a ser "tenho muitos domínios?". Se você tiver `news_qa`, `users`, `billing`, `notifications` e `admin`, pastas globais como `services/` e `repositories/` viram gavetas grandes demais. Nesse ponto, faz sentido agrupar por feature e manter as camadas dentro de cada módulo:
+
+```text
+app/
+  main.py
+  core/
+    config.py
+
+  modules/
+    news_qa/
+      router.py
+      schemas.py
+      service.py
+      repositories.py
+      clients.py
+
+    users/
+      router.py
+      schemas.py
+      service.py
+      repositories.py
+
+  api/
+    deps.py
+```
+
+Essa versão está em [`04-feature-modules`](https://github.com/WittmannF/wittmannf.github.io/tree/main/public/blog/layered-architecture-fastapi/04-feature-modules).
+
+E, se uma feature específica crescer, ela pode virar pacotes internos:
+
+```text
+app/
+  modules/
+    news_qa/
+      routers/
+        http.py
+      schemas/
+        requests.py
+        responses.py
+      services/
+        answer_question.py
+        ingest_articles.py
+      repositories/
+        article_repository.py
+        vector_repository.py
+      clients/
+        news_client.py
+        llm_client.py
+        embedding_client.py
+```
+
+Essa última forma está em [`05-feature-packages`](https://github.com/WittmannF/wittmannf.github.io/tree/main/public/blog/layered-architecture-fastapi/05-feature-packages).
+
+Repare que isso não é trocar de arquitetura no meio do caminho. É a mesma ideia crescendo em duas etapas:
+
+1. Primeiro, arquivos viram pastas: `router.py` vira `routers/`, `schemas.py` vira `schemas/`, `repositories.py` vira `repositories/`.
+2. Depois, quando há muitos domínios, você agrupa por feature e mantém as camadas dentro de cada feature.
+
+Essa progressão também evita uma armadilha comum: começar com "Clean Architecture" demais para um app que ainda nem sentiu dor suficiente. O desenho deve ficar mais explícito conforme as mudanças reais pedem fronteiras mais claras.
+
+---
+
 ## O insight específico de LLM: onde fica a chamada ao modelo?
 
 Isso confunde a maioria dos engenheiros de ML. Chamar o LLM é uma operação de "serviço" ou de "repositório"?
 
 O enquadramento útil: **depende de como você modela**.
+
+RAG deixa essa fronteira ainda mais interessante. O paper original de [Retrieval-Augmented Generation](https://arxiv.org/abs/2005.11401) descreve a combinação entre memória paramétrica do modelo e memória não-paramétrica, normalmente um índice externo recuperável. Traduzindo para arquitetura: o modelo e o índice mudam por razões diferentes. O índice muda quando os dados mudam. O prompt muda quando o comportamento desejado muda. O provedor de LLM muda por custo, latência, qualidade ou política.
+
+Essas razões de mudança são um bom guia para desenhar fronteiras.
 
 Se o LLM é *um componente da sua lógica* — você constrói um prompt, envia, interpreta a resposta — isso é uma operação de serviço. O serviço é responsável pelo prompt, pela escolha do modelo, pela política de retry.
 
@@ -487,11 +637,17 @@ No nosso app, o LLM faz parte da lógica de forma profunda (construímos o promp
 
 A fronteira é nebulosa. Não vale a pena agonizar sobre isso. Na dúvida: se parece "buscar algo externo", é repositório. Se parece "computar algo usando a lógica do seu domínio", é serviço.
 
+Outra forma de pensar: RAG não é só "colocar contexto no prompt". A própria documentação da OpenAI sobre [otimização de precisão](https://developers.openai.com/api/docs/guides/optimizing-llm-accuracy) trata prompt engineering, retrieval e fine-tuning como alavancas diferentes. Se retrieval é uma alavanca separada, ele merece uma superfície separada no código. Isso facilita testar qualidade de recuperação sem ter que testar geração ao mesmo tempo.
+
 ---
 
 ## Testando: o retorno
 
 Veja como fica uma suíte de testes com a versão em camadas:
+
+Aqui entram os **test doubles**. Um fake é uma implementação simples que funciona de verdade, como um repositório em memória. Um mock é um objeto usado para verificar interação, como "o cliente do LLM foi chamado com um prompt contendo Tesla". Martin Fowler usa [Test Double](https://www.martinfowler.com/bliki/TestDouble.html) como termo guarda-chuva para esses substitutos.
+
+A arquitetura em camadas ajuda porque cada dependência externa fica substituível no ponto certo. Você não precisa fingir HTTP para testar retrieval. Não precisa chamar a News API para testar prompt. Não precisa gastar tokens para testar que a orquestração chamou o modelo com o contexto certo.
 
 ```python
 # test_retrieval.py
@@ -581,5 +737,9 @@ Este guia manteve as coisas simples de propósito: armazenamento em memória, um
 - **Respostas em streaming** — `StreamingResponse` no router, `stream=True` no serviço, sem alterar o repositório
 
 Cada um desses se encaixa na camada onde pertence. É assim que você sabe que a arquitetura está funcionando: novos requisitos têm um lugar óbvio.
+
+Se você continuar evoluindo esse desenho, provavelmente vai encontrar termos como **Ports and Adapters**, **Hexagonal Architecture**, **Onion Architecture** e **Clean Architecture**. Eles não são a mesma coisa em todos os detalhes, mas compartilham uma intuição: a aplicação fica no centro, e o mundo externo conversa com ela por adaptadores. Alistair Cockburn descreve a [arquitetura hexagonal](https://alistair.cockburn.us/hexagonal-architecture) como uma aplicação no lado de dentro se comunicando por portas com coisas do lado de fora.
+
+No nosso exemplo, HTTP é um adaptador de entrada. Um job noturno seria outro. News API, vector store e LLM são adaptadores de saída. A camada de serviço é onde esses adaptadores se encontram para realizar um caso de uso.
 
 Você começou com um arquivo. Terminou com cinco. O app faz exatamente a mesma coisa. Mas agora, quando algo muda — e algo sempre muda — você sabe onde ir.
