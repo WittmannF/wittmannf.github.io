@@ -554,6 +554,58 @@ No HTTP. No real API calls. Each test is fast, isolated, and expressive. This is
 
 ---
 
+## Why this pattern exists: a brief history
+
+Layered architecture wasn't invented for REST APIs. The idea of separating concerns into distinct levels traces back to Edsger Dijkstra, who argued in the 1960s that software complexity is only manageable when a system can be understood one layer at a time. The principle became known as *separation of concerns* — and it remains the central justification for everything we built in this guide.
+
+The concrete form we used here — presentation, business logic, data access — became widespread in the 1990s with the growth of corporate web applications. Martin Fowler formalized it in *Patterns of Enterprise Application Architecture* (2002) under the name **Presentation-Domain-Data Layering**, and his argument is still the clearest I know:
+
+> The primary benefit isn't substitutability or testability — it's **reduced cognitive scope**. When you're working in the service layer, you can treat the repository as a black box. That's already worth it on its own.
+
+Substitutability and testability are real bonuses, but the core argument is simple: you can think about one thing at a time.
+
+---
+
+## Layered, Hexagonal, Clean: what's the difference?
+
+You'll encounter all three names in the literature and they look similar. The distinction is worth understanding.
+
+**Layered Architecture** is what we built here. Dependencies flow downward: router → service → repository. The upper layer knows the lower one. Works well for most backends.
+
+**Hexagonal Architecture** (Alistair Cockburn, 2005) and **Clean Architecture** (Robert C. Martin, 2012) start from the same problem but add a stronger constraint: the domain cannot depend on anything external — not the web framework, not the database. Dependencies always point inward, toward the center.
+
+The practical difference:
+
+| | Layered | Clean/Hexagonal |
+|---|---|---|
+| Dependency direction | Always downward | Always inward |
+| Does the service know the repository? | Yes, directly | No — depends on an interface |
+| Framework (FastAPI) in the core? | Can be | Never |
+| Implementation cost | Lower | Higher |
+| When it's worth it | Most backends | Complex domains, large teams |
+
+In practice, the difference shows up like this: in layered architecture, `NewsQAService` imports `ArticleRepository` directly. In Clean Architecture, `NewsQAService` would depend on an `AbstractArticleRepository` interface, and the concrete implementation would be injected from outside. The service would never know whether the repository uses an in-memory list, Postgres, or Qdrant.
+
+For most LLM projects, the layered architecture we built here is the right point on the spectrum. Clean Architecture makes sense when the domain needs to survive independent of any infrastructure — useful in large systems, overkill for medium-sized APIs.
+
+If you want to go deeper, the reference book for Python is *Architecture Patterns with Python* (Harry Percival and Bob Gregory, O'Reilly) — it covers the Repository Pattern, Unit of Work, and ports/adapters with real examples.
+
+---
+
+## The dependency rule
+
+Regardless of which variant you use, there's one rule that cannot be broken:
+
+**Dependencies always point in one direction. Never back.**
+
+In our app: the router knows the service, but the service doesn't know the router. The service knows the repository, but the repository doesn't know the service.
+
+If you break this rule — say, by importing something from the router inside the service — the separation collapses. The service now depends on HTTP details. You can no longer test it without spinning up a server. You can no longer call it from a background job. The layers become decoration.
+
+A practical way to verify: try running `python services.py` without importing FastAPI. If it works, the rule is being respected.
+
+---
+
 ## When NOT to layer
 
 A proof of concept with two endpoints and a one-day deadline? Don't layer it.
