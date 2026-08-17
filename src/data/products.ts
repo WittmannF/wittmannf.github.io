@@ -12,14 +12,14 @@ export interface Product {
 export const products = {
   grinder1zpresso: {
     id: 'grinder-1zpresso',
-    name: '1Zpresso manual coffee grinder',
+    name: '1Zpresso Q Manual Coffee Grinder',
     asin: 'B0GMT2NT39',
     amazonDomain: 'www.amazon.com',
     affiliateUrl: 'https://amzn.to/4cFbiVp',
   },
   aeropressTravelPress: {
     id: 'aeropress-travel-press',
-    name: 'AeroPress travel coffee press',
+    name: 'AeroPress Go Portable Coffee Maker Kit',
     asin: 'B07YVL8SF3',
     amazonDomain: 'www.amazon.com',
     affiliateUrl: 'https://amzn.to/4gbJZTK',
@@ -33,7 +33,7 @@ export const products = {
   },
   compactImmersionHeater: {
     id: 'compact-immersion-heater',
-    name: 'compact immersion water heater',
+    name: 'Immersion Water Heater',
     affiliateUrl: 'https://amzn.to/4cqmjKe',
     description: 'International option similar to the ultracompact mate heaters common in southern Brazil.',
   },
