@@ -13,6 +13,21 @@ const blog = defineCollection({
   }),
 });
 
+const hobbies = defineCollection({
+  type: 'content',
+  schema: z.object({
+    title: z.string(),
+    description: z.string(),
+    pubDate: z.coerce.date(),
+    updatedDate: z.coerce.date().optional(),
+    tags: z.array(z.string()).optional(),
+    draft: z.boolean().default(false),
+    lang: z.enum(['en', 'pt']).default('en'),
+    heroImage: z.string().optional(),
+    translationKey: z.string().optional(),
+  }),
+});
+
 const projects = defineCollection({
   type: 'content',
   schema: z.object({
@@ -27,4 +42,4 @@ const projects = defineCollection({
   }),
 });
 
-export const collections = { blog, projects };
+export const collections = { blog, hobbies, projects };

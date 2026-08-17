@@ -7,22 +7,31 @@ interface Props {
   pubDate: Date;
   updatedDate?: Date;
   tags?: string[];
+  lang?: 'en' | 'pt';
+  section?: 'blog' | 'hobbies';
 }
 
-const { title, description, pubDate, updatedDate, tags } = Astro.props;
+const { title, description, pubDate, updatedDate, tags, lang = 'en', section = 'blog' } = Astro.props;
+const locale = lang === 'pt' ? 'pt-BR' : 'en-US';
+const sectionUrl = lang === 'pt' ? `/pt/${section}` : `/${section}`;
+const alternateUrl = lang === 'pt' ? `/${section}` : `/pt/${section}`;
+const updatedLabel = lang === 'pt' ? 'Atualizado em' : 'Updated on';
+const backLabel = section === 'hobbies'
+  ? (lang === 'pt' ? 'Voltar para Hobbies' : 'Back to Hobbies')
+  : (lang === 'pt' ? 'Voltar para o blog' : 'Back to blog');
 
-const formattedDate = new Intl.DateTimeFormat('en-US', {
+const formattedDate = new Intl.DateTimeFormat(locale, {
   year: 'numeric',
   month: 'long',
   day: 'numeric'
 }).format(pubDate);
 
 const formattedUpdatedDate = updatedDate
-  ? new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long', day: 'numeric' }).format(updatedDate)
+  ? new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'long', day: 'numeric' }).format(updatedDate)
   : null;
 ---
 
-<BaseLayout title={title} description={description} lang="en" alternateUrl="/pt/blog">
+<BaseLayout title={title} description={description} lang={lang} alternateUrl={alternateUrl}>
   <article class="max-w-3xl mx-auto">
     <header class="mb-12">
       {tags && tags.length > 0 && (
@@ -43,7 +52,7 @@ const formattedUpdatedDate = updatedDate
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            Updated on {formattedUpdatedDate}
+            {updatedLabel} {formattedUpdatedDate}
           </span>
         )}
       </div>
@@ -79,11 +88,11 @@ const formattedUpdatedDate = updatedDate
     </div>
 
     <div class="mt-16 pt-8" style="border-top: 1px solid var(--tn-border);">
-      <a href="/blog" class="inline-flex items-center gap-2 font-medium transition-colors" style="color: var(--tn-blue);">
+      <a href={sectionUrl} class="inline-flex items-center gap-2 font-medium transition-colors" style="color: var(--tn-blue);">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
         </svg>
-        Back to blog
+        {backLabel}
       </a>
     </div>
   </article>

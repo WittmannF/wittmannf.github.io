@@ -1,0 +1,24 @@
+---
+import { amazonUrl, products, type ProductKey } from '../data/products';
+
+interface Props {
+  productKey: ProductKey;
+  label?: string;
+}
+
+const { productKey, label } = Astro.props;
+const product = products[productKey];
+
+if (!product) {
+  throw new Error(`Unknown product key: ${productKey}`);
+}
+---
+
+<a
+  href={amazonUrl(product)}
+  target="_blank"
+  rel="sponsored nofollow noopener noreferrer"
+  class="affiliate-product-link"
+>
+  {label ?? product.name}
+</a>
