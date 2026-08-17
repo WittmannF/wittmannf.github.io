@@ -11,11 +11,13 @@ const nav = lang === 'en'
   ? [
       { href: '/', label: 'Home' },
       { href: '/blog', label: 'Blog' },
+      { href: '/hobbies', label: 'Hobbies' },
       { href: '/projects', label: 'Projects' },
     ]
   : [
       { href: '/pt/', label: 'Início' },
       { href: '/pt/blog', label: 'Blog' },
+      { href: '/pt/hobbies', label: 'Hobbies' },
       { href: '/pt/projects', label: 'Projetos' },
     ];
 
@@ -29,13 +31,13 @@ function isActive(href: string) {
 ---
 
 <header style="border-bottom: 1px solid var(--tn-border); background-color: rgba(26, 27, 46, 0.85);" class="backdrop-blur-xl sticky top-0 z-50">
-  <nav class="container py-5">
-    <div class="flex items-center justify-between">
-      <a href={lang === 'en' ? '/' : '/pt/'} class="text-xl font-bold transition-colors" style="color: var(--accent);">
+  <nav class="container py-4 sm:py-5">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <a href={lang === 'en' ? '/' : '/pt/'} class="text-lg sm:text-xl font-bold transition-colors" style="color: var(--accent);">
         Fernando Wittmann
       </a>
-      <div class="flex items-center gap-8">
-        <ul class="flex gap-8 text-sm font-medium">
+      <div class="flex items-center justify-between gap-4 sm:gap-8">
+        <ul class="flex gap-4 sm:gap-8 text-sm font-medium">
           {nav.map(({ href, label }) => (
             <li>
               <a

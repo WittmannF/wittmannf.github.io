@@ -1,0 +1,19 @@
+---
+import { getCollection } from 'astro:content';
+import BlogPost from '../../layouts/BlogPost.astro';
+
+export async function getStaticPaths() {
+  const posts = (await getCollection('hobbies')).filter(p => !p.data.draft && p.data.lang === 'en');
+  return posts.map((post) => ({
+    params: { slug: post.slug },
+    props: post,
+  }));
+}
+
+const post = Astro.props;
+const { Content } = await post.render();
+---
+
+<BlogPost {...post.data} section="hobbies">
+  <Content />
+</BlogPost>

@@ -152,4 +152,25 @@
   .social-link:hover {
     color: var(--accent);
   }
+
+  .affiliate-product-link {
+    color: var(--tn-blue);
+    @apply inline-flex flex-wrap items-baseline gap-2 font-medium no-underline transition-colors;
+  }
+
+  .affiliate-product-link:hover {
+    color: var(--tn-text-bright);
+  }
+
+  .affiliate-disclosure {
+    color: var(--tn-muted);
+    @apply text-xs font-normal;
+  }
+
+  .affiliate-disclosure-box {
+    background-color: var(--accent-dim);
+    border: 1px solid var(--accent-border);
+    color: var(--tn-text);
+    @apply my-8 rounded-lg px-4 py-3 text-sm leading-relaxed;
+  }
 }
