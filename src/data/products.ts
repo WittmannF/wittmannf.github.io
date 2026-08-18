@@ -37,6 +37,16 @@ export const products = {
     affiliateUrl: 'https://amzn.to/4cqmjKe',
     description: 'International option similar to the ultracompact mate heaters common in southern Brazil.',
   },
+  grinder1zpressoHome: {
+    id: 'grinder-1zpresso-home',
+    name: '1Zpresso manual coffee grinder for home use',
+    affiliateUrl: 'https://amzn.to/4g3J7Sp',
+  },
+  kintoTravelTumbler: {
+    id: 'kinto-travel-tumbler',
+    name: 'KINTO 20942 Travel Tumbler',
+    affiliateUrl: 'https://amzn.to/4wEWNsb',
+  },
 } satisfies Record<string, Product>;
 
 export type ProductKey = keyof typeof products;
