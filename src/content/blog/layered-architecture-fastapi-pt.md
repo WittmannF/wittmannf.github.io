@@ -552,6 +552,58 @@ Sem HTTP. Sem chamadas reais de API. Cada teste é rápido, isolado e expressivo
 
 ---
 
+## Por que esse padrão existe: um pouco de história
+
+Arquitetura em camadas não foi inventada para APIs REST. A ideia de separar responsabilidades em níveis distintos vem de Edsger Dijkstra, que nos anos 1960 já argumentava que complexidade de software só é gerenciável quando o sistema pode ser compreendido uma camada por vez. O princípio ficou conhecido como *separation of concerns* — e continua sendo a justificativa central para tudo que vimos neste guia.
+
+A forma concreta que usamos aqui — apresentação, lógica de negócio, acesso a dados — popularizou-se nos anos 1990 com o crescimento de aplicações web corporativas. Martin Fowler formalizou esse padrão no livro *Patterns of Enterprise Application Architecture* (2002) com o nome **Presentation-Domain-Data Layering**, e a argumentação dele ainda é a mais clara que conheço:
+
+> O benefício principal não é substituibilidade nem testabilidade — é **redução do escopo cognitivo**. Quando você está trabalhando na camada de serviço, pode tratar o repositório como uma caixa preta. Isso já vale por si só.
+
+A substituibilidade e a testabilidade são bônus reais, mas o argumento central é simples: você consegue pensar em uma coisa de cada vez.
+
+---
+
+## Layered, Hexagonal, Clean: qual a diferença?
+
+Você vai encontrar esses três nomes na literatura e eles se parecem muito. Vale entender a distinção.
+
+**Arquitetura em Camadas** é o que construímos aqui. As dependências fluem de cima para baixo: router → service → repository. A camada de cima conhece a de baixo. Funciona bem para a maioria dos backends.
+
+**Arquitetura Hexagonal** (Alistair Cockburn, 2005) e **Clean Architecture** (Robert C. Martin, 2012) partem do mesmo problema, mas adicionam uma restrição mais forte: o domínio não pode depender de nada externo — nem do framework web, nem do banco de dados. As dependências sempre apontam para dentro, em direção ao centro.
+
+A diferença prática:
+
+| | Layered | Clean/Hexagonal |
+|---|---|---|
+| Direção das dependências | Sempre para baixo | Sempre para dentro |
+| O serviço conhece o repositório? | Sim, diretamente | Não — depende de uma interface |
+| Framework (FastAPI) no centro? | Pode estar | Nunca |
+| Custo de implementação | Menor | Maior |
+| Quando vale a pena | Maioria dos backends | Domínios complexos, times grandes |
+
+Na prática, a diferença aparece assim: na arquitetura em camadas, `NewsQAService` importa `ArticleRepository` diretamente. Em Clean Architecture, `NewsQAService` dependeria de uma interface `AbstractArticleRepository`, e a implementação concreta seria injetada de fora. O serviço nunca saberia se o repositório usa uma lista em memória, Postgres ou Qdrant.
+
+Para a maioria dos projetos de LLM, a arquitetura em camadas que construímos aqui é o ponto certo. Clean Architecture faz sentido quando o domínio precisa sobreviver independente de qualquer infraestrutura — útil em sistemas grandes, excessivo em APIs de tamanho médio.
+
+Se quiser aprofundar, o livro de referência para Python é *Architecture Patterns with Python* (Harry Percival e Bob Gregory, O'Reilly) — cobre Repository Pattern, Unit of Work e ports/adapters com exemplos reais.
+
+---
+
+## A regra de dependência
+
+Independente de qual variante você use, existe uma regra que não pode ser quebrada:
+
+**As dependências sempre apontam em uma direção. Nunca de volta.**
+
+No nosso app: o router conhece o serviço, mas o serviço não conhece o router. O serviço conhece o repositório, mas o repositório não conhece o serviço.
+
+Se você quebrar essa regra — por exemplo, importar algo do router dentro do serviço — a separação colapsa. O serviço passa a depender de detalhes HTTP. Você não consegue mais testá-lo sem subir um servidor. Não consegue chamá-lo de um job em background. As camadas viraram decoração.
+
+Uma forma prática de verificar: consiga rodar `python services.py` sem importar FastAPI. Se isso funcionar, a regra está sendo respeitada.
+
+---
+
 ## Quando NÃO usar camadas
 
 Uma prova de conceito com dois endpoints e prazo de um dia? Não use camadas.
