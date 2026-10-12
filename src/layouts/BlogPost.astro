@@ -35,7 +35,7 @@ const formattedUpdatedDate = updatedDate
   <article class="max-w-3xl mx-auto">
     <header class="mb-12">
       {tags && tags.length > 0 && (
-        <div class="flex gap-2 mb-6">
+        <div class="flex flex-wrap gap-2 mb-6">
           {tags.map(tag => <span class="tag">{tag}</span>)}
         </div>
       )}
