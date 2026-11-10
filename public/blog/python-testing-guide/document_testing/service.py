@@ -10,13 +10,14 @@ class DocumentService:
         self.repository = repository
 
     def process(self, document: DocumentInput) -> DocumentOutput:
+        name = normalize_name(document.raw_name)
+        days = self.extractor.payment_days(document.text)
         output = DocumentOutput(
             document_id=document.document_id,
-            borrower_name=normalize_name(document.raw_name),
-            payment_days=self.extractor.payment_days(document.text),
-            review_route="",
+            borrower_name=name,
+            payment_days=days,
+            review_route=route_for_review(days),
         )
-        output.review_route = route_for_review(output.payment_days)
         self.repository.save(output)
         return output
 
