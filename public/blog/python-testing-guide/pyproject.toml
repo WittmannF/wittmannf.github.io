@@ -3,7 +3,7 @@ name = "python-testing-guide-demo"
 version = "0.2.0"
 description = "Progressive Python testing tutorial: from one function to a layered API"
 requires-python = ">=3.12"
-dependencies = ["fastapi>=0.115"]
+dependencies = ["fastapi>=0.115", "pydantic>=2.9"]
 
 [dependency-groups]
 dev = [
