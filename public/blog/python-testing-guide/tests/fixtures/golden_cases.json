@@ -1,0 +1,5 @@
+[
+  {"id": "standard-terms", "text": "Payment Terms: 30 days", "expected_payment_days": 30},
+  {"id": "case-insensitive", "text": "PAYMENT TERMS: 45 DAYS", "expected_payment_days": 45},
+  {"id": "missing-field", "text": "No payment terms provided", "expected_payment_days": null}
+]
