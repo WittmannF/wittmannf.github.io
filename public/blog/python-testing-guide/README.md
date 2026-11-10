@@ -1,38 +1,78 @@
-# Python Testing That Actually Catches Bugs — Companion Project
+# Python Testing That Actually Catches Bugs
 
-This folder accompanies the draft [Python testing + TDD guide](../../../src/content/blog/python-testing-guide.md).
+Companion for the [draft article](../../../src/content/blog/python-testing-guide.md). The example progresses from a one-file function to a small application with distinct domain, service, persistence, and HTTP boundaries.
 
-The example is a deliberately small, **synthetic** document-processing FastAPI service. It normalizes names, extracts a simple payment-terms pattern with regex, applies a demo review rule, and returns a structured response. It does not call any paid provider and requires no credentials.
+**This is synthetic teaching code** and does not implement a production extraction or financial decision system. No credentials or paid services are required.
 
-## Run
+## Install and run
 
 Requires Python 3.12+ and [uv](https://docs.astral.sh/uv/).
 
 ~~~bash
 cd public/blog/python-testing-guide
 uv sync
-uv run pytest -q
-uv run pytest --cov=document_service --cov-report=term-missing
-uv run uvicorn document_service:app --reload  # optional; install uvicorn if using this command
+uv run pytest -q -m "not e2e"
+uv run pytest tests/unit -q
+uv run pytest tests/integration -q
+uv run pytest tests/regression -q
+uv run pytest tests/property -q
+uv run pytest --cov=document_testing --cov-report=term-missing
 ~~~
 
-The API can also be tested via FastAPI's TestClient without starting a server.
+## The progression
 
-## What each test demonstrates
+| Stage | New problem | Architectural change | Test category |
+|---|---|---|---|
+| 1 | A simple rule could regress | One-file function | Unit |
+| 2 | More rules and edge cases | TDD and parametrization | Unit (techniques) |
+| 3 | External dependencies enter the service | Interfaces / dependency injection | Unit using fakes |
+| 4 | We must know persistence works | A real SQLite adapter | Integration |
+| 5 | The service is exposed over HTTP | FastAPI routes and schemas | In-process integration + contract |
+| 6 | We need proof the running service works | Run a server and call it via HTTP | E2E |
+| 7 | Previously missed cases must be caught | Golden fixtures and Hypothesis | Regression objective + property technique |
+| 8 | LLM output introduces uncertain correctness | Independently reviewed dataset | Evaluation (conceptual) |
 
-- **Unit + parametrization**: name cleanup, error handling, and routing boundaries.
-- **Test double**: a fake extractor injected into the service rather than patched private methods.
-- **API integration / local contract**: TestClient with a dependency override and JSON contract assertion.
-- **Filesystem isolation**: pytest's tmp_path fixture.
-- **Regression**: independently specified synthetic cases in tests/fixtures/golden_cases.json.
-- **Property-based**: Hypothesis checks an idempotence invariant.
+### File layout
 
-## Important limitations
+~~~text
+walkthrough/stage01_one_file.py    # minimal first version
+document_testing/
+  domain.py                        # pure business rules
+  ports.py                         # Extractor and DocumentRepository interfaces
+  service.py                       # business workflow
+  infrastructure.py                # regex and real SQLite adapters
+  api.py                           # FastAPI / dependency wiring
+tests/
+  unit/
+  integration/
+  e2e/
+  regression/
+  property/
+  fixtures/golden_cases.json
+~~~
 
-- A FastAPI TestClient test is **not** an end-to-end test of a deployed application.
-- A fake extractor verifies our service integration with an interface, **not** the behavior of an actual external provider.
-- The regex extractor and review routing are teaching examples, not recommendations for extracting real contractual obligations.
-- The golden cases are synthetic, not statistically representative of production.
-- The example focuses on deterministic testing. A separate LLM evaluation suite would be needed for AI extraction quality.
+This grouping is pedagogical, not a mandatory production convention: regression is a test objective, and property-based testing a technique. Both can be applied at multiple test scopes.
 
-No CI workflow or repository-wide dependencies are changed by this companion.
+## Opt-in real HTTP E2E
+
+In terminal 1:
+
+~~~bash
+uv run uvicorn document_testing.api:app --port 8000
+~~~
+
+In terminal 2:
+
+~~~bash
+TEST_BASE_URL=http://127.0.0.1:8000 uv run pytest tests/e2e -q
+~~~
+
+The E2E test skips by default. It sends a real HTTP POST and GET against the running server and exercises normal SQLite persistence. For production CI, run it in a controlled environment.
+
+## Limitations
+
+- Tests against fakes do not prove that an external provider works.
+- FastAPI TestClient tests cannot prove deployed infrastructure works.
+- Regression fixtures are synthetic and are not a representative quality benchmark.
+- Regex and review-routing rules are illustrative, not valid contractual or financial policies.
+- LLM quality needs dedicated, independently scored evaluations.
