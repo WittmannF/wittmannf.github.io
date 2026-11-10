@@ -1,12 +1,19 @@
-"""Pure business rules: no HTTP, SQL, or external-provider imports."""
+"""Pure business rules and public data contracts."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class DocumentInput(BaseModel):
     document_id: str = Field(min_length=1)
     raw_name: str
     text: str
+
+    @field_validator("raw_name")
+    @classmethod
+    def reject_blank_name(cls, raw: str) -> str:
+        if not raw.split():
+            raise ValueError("borrower_name cannot be blank")
+        return raw
 
 
 class DocumentOutput(BaseModel):
