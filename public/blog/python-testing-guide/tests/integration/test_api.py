@@ -37,8 +37,13 @@ def test_create_and_retrieve_document_with_contract(client):
     assert stored.status_code == 200
     assert stored.json() == expected
 
-def test_request_validation_rejects_missing_id(client):
-    response = client.post("/documents/process", json={"raw_name": "Ada", "text": "hello"})
+@pytest.mark.parametrize(
+    "payload",
+    [{"raw_name": "Ada", "text": "hello"},
+     {"document_id": "D-3", "raw_name": "   ", "text": "hello"}],
+)
+def test_request_validation_returns_422(client, payload):
+    response = client.post("/documents/process", json=payload)
     assert response.status_code == 422
 
 def test_missing_document_is_404(client):
