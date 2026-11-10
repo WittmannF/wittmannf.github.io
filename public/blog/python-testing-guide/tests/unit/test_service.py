@@ -36,9 +36,13 @@ def test_service_processes_and_saves_using_fakes():
     assert service.get("doc-1") == result
     assert extractor.calls == ["some text"]
 
-def test_invalid_name_does_not_write_to_repository():
+def test_extraction_failure_does_not_persist_partial_record():
+    class FailingExtractor:
+        def payment_days(self, text: str) -> int | None:
+            raise RuntimeError("provider temporarily unavailable")
+
     repository = FakeRepository()
-    service = DocumentService(FakeExtractor(), repository)
-    with pytest.raises(ValueError, match="cannot be blank"):
-        service.process(DocumentInput(document_id="bad", raw_name="  ", text="any"))
+    service = DocumentService(FailingExtractor(), repository)
+    with pytest.raises(RuntimeError, match="unavailable"):
+        service.process(DocumentInput(document_id="bad", raw_name="Ada", text="any"))
     assert repository.records == {}
